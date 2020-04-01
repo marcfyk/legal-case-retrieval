@@ -2,3 +2,4 @@
 *.pdf
 src/data
 src/queries
+src/model/__pycache__

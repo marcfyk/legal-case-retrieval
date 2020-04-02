@@ -8,4 +8,6 @@ data_file = 'data/dataset.csv'
 query_file = ''
 results_file = ''
 
-
+while 1:
+    query = input('enter query:\n')
+    print(Query.parse(query))

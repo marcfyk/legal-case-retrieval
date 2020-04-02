@@ -61,16 +61,17 @@ class Query:
                         raise ParseError(f'improper use of {and_operator} operator in query: {t}')
                     if free_text_tokens[-1] != and_operator:
                         raise ParseError(f'missing {and_operator} operator in query: {t}')
+                    q.free_text.extend(free_text_tokens[:-1])
                 elif i == len(tokens) - 1:
                     if free_text_tokens[0] != and_operator:
                         raise ParseError(f'missing {and_operator} operator in query: {t}')
                     if free_text_tokens[-1] == and_operator:
                         raise ParseError(f'improper use of {and_operator} operator in query: {t}')
+                    q.free_text.extend(free_text_tokens[1:])
                 else:
                     if free_text_tokens[0] != and_operator or free_text_tokens[-1] != and_operator:
                         raise ParseError(f'missing {and_operator} operator in query: {t}')
-
-                q.free_text.extend(free_text_tokens)
+                    q.free_text.extend(free_text_tokens[1:-1])
         
         return q
 

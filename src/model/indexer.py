@@ -61,12 +61,14 @@ class Indexer:
         '''
         returns a set of terms
         '''
-        terms = defaultdict(lambda: 0)
+        index = 0
+        terms = defaultdict(lambda: [])
         for sentence in sent_tokenize(content):
             for word in word_tokenize(sentence):
                 if has_any_alphanumeric(word):
                     term = stem(word.strip().casefold())
-                    terms[term] += 1
+                    terms[term].append(index)
+                    index += 1
                     
         for term in terms:
             if term not in self.dictionary:
@@ -111,23 +113,24 @@ class Indexer:
         doc_generator = self._generate_documents(data_file)
         doc_count = 0
         for doc, content in doc_generator:
+            if doc_count == limit:
+                break
             term_postings = {}
             self.documents[doc.doc_id] = doc
             length = 0
-            for term, term_frequency in self._index_content(content).items():
-                term_postings[term] = Posting(doc.doc_id, term_frequency)
+            for term, positions in self._index_content(content).items():
+                term_frequency = len(positions)
+                term_postings[term] = Posting(doc.doc_id, term_frequency, positions)
                 length += tf(term_frequency) ** 2
             doc.length = length
             doc_count += 1
             self.write_to_postings_file(term_postings)
             print(f'indexed {doc_count}', end='\r')
-            if doc_count == limit:
-                break
-        
-        for doc in self.documents:
-            doc.length = math.sqrt(doc.length)
         
         print(f'completed indexing {doc_count} documents')
+        for doc in self.documents.values():
+            doc.length = math.sqrt(doc.length)
+        
 
         with open(self.dictionary_file, 'wb') as dictionary_file, open(self.document_file, 'wb') as document_file:
             pickle.dump(self.dictionary, dictionary_file)

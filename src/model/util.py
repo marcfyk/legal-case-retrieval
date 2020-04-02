@@ -17,3 +17,12 @@ def has_any_alphanumeric(word):
         if c.isalnum():
             return True
     return False
+
+def accumulate(numbers):
+    output = []
+    total = 0
+    for i in range(len(numbers)):
+        delta = numbers[i] - total
+        output.append(delta)
+        total += delta
+    return output

@@ -13,6 +13,7 @@ from .term import Term
 from .util import tf
 from .util import stem
 from .util import has_any_alphanumeric
+from .util import get_line_pointers
 
 import csv
 import datetime
@@ -127,10 +128,14 @@ class Indexer:
             self.write_to_postings_file(term_postings)
             print(f'indexed {doc_count}', end='\r')
         
-        print(f'completed indexing {doc_count} documents')
         for doc in self.documents.values():
             doc.length = math.sqrt(doc.length)
-        
+
+        pointers = get_line_pointers(self.postings_file)
+        for term, pointer in zip(self.dictionary.values(), pointers):
+            term.file_position.pointer = pointer
+
+        print(f'completed indexing {doc_count} documents')
 
         with open(self.dictionary_file, 'wb') as dictionary_file, open(self.document_file, 'wb') as document_file:
             pickle.dump(self.dictionary, dictionary_file)

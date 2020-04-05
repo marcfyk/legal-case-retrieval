@@ -92,9 +92,9 @@ class Indexer:
             line = f.readline()
             while line:
                 if line_number == line_index:
-                    postings_list = PostingsList.parse(line.strip(), is_compressed=True)
+                    postings_list = PostingsList.parse(line.strip()).decompress()
                     postings_list.add(posting)
-                    t.write(str(postings_list) + '\n')
+                    t.write(str(postings_list.compress()) + '\n')
                     line_postings_pairs.pop()
                     line_number, posting = line_postings_pairs[-1] if line_postings_pairs else (-1, [])
                 else:
@@ -102,7 +102,7 @@ class Indexer:
                 line_index += 1
                 line = f.readline()
             while line_postings_pairs:
-                t.write(str(PostingsList([posting])) + '\n')
+                t.write(str(PostingsList([posting]).compress()) + '\n')
                 line_postings_pairs.pop()
                 line_number, posting = line_postings_pairs[-1] if line_postings_pairs else (-1, [])
         os.replace(temp_postings_file, self.postings_file)
@@ -133,7 +133,7 @@ class Indexer:
 
         pointers = get_line_pointers(self.postings_file)
         for term, pointer in zip(self.dictionary.values(), pointers):
-            term.file_position.pointer = pointer
+            term.file_position.offset = pointer
 
         print(f'completed indexing {doc_count} documents')
 

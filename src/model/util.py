@@ -21,7 +21,7 @@ def has_any_alphanumeric(word):
             return True
     return False
 
-def accumulate(numbers):
+def inverse_accumulate(numbers):
     '''
     takes in a list X and returns a list Y,
     where for a valid index i, X[i] == sum of all elements from Y[0] to Y[i] (inclusive)
@@ -60,3 +60,82 @@ def get_line_pointers(file_name):
             line = f.readline()
     return ptrs
 
+def interleave(iterables, stop_early=False):
+    '''
+    generates the result of interleaving a list of iterables, 
+    stop_early determines if generator stops when the first iterable is exhausted or
+    when all iterables are exhausted.
+    stop_early: True -> stop when first iterable is exhausted
+    stop_early: False -> stop when all iterables are exhausted
+    '''
+    if stop_early:
+        return _interleave_min(iterables)
+    else:
+        return _interleave_max(iterables)
+
+def _interleave_min(iterables):
+    '''
+    interleaves and generates a list of iterables, 
+    and stops when the first iterable has been exhausted.
+    '''
+    if not len(iterables):
+        return
+    iterators = [iter(i) for i in iterables]
+    while 1:
+        for i in iterators:
+            try:
+                yield next(i)
+            except StopIteration:
+                return
+
+def _interleave_max(iterables):
+    '''
+    interleaves and generates a list of iterables, 
+    stops only when all iterables have been exhausted.
+    '''
+    if not len(iterables):
+        return
+    iterators = [iter(i) for i in iterables]
+    status = [1 for i in iterators]
+    counter = len(status)
+    while 1:
+        if counter == 0:
+            return
+        for i in range(len(iterators)):
+            try:
+                yield next(iterators[i])
+            except StopIteration:
+                if status[i] == 1:
+                    counter -= 1
+                    status[i] = 0
+                continue
+
+def union(l1, l2):
+    '''
+    returns a list containing all elements from l1 and l2.
+    l1 and l2 must be sorted before calling this function.
+    '''
+    output = []
+    iter1, iter2 = iter(l1), iter(l2)
+    try:
+        n1, n2 = next(iter1), next(iter2)
+        while 1:
+            if n1 < n2:
+                n1 = next(iter1)
+            elif n1 > n2:
+                n2 = next(iter2)
+            else:
+                output.append(n2)
+                n1, n2 = next(iter1), next(iter2)
+    except StopIteration:
+        return output
+    return output
+
+def within_proximity(l1, l2, distance=0):
+    '''
+    checks if there are any elements in l1 and l2, i and j,
+    where difference between |i - j| = distance.
+    '''
+    shifted_l1 = [i + distance for i in l1]
+    match = union(shifted_l1, l2)
+    return match

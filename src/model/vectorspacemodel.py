@@ -33,8 +33,20 @@ class VectorSpaceModel:
             term_count[t] += 1
         weights = [tf(freq) * idf(len(self.documents), term.doc_frequency) for term, freq in term_count.items()]
 
+        scores = defaultdict(lambda: 0)
+
         for term, weight in zip(term_objs, weights):
             postings_list = self.get_postings_list(term)
             for posting in postings_list:
+                doc_id, term_freq = posting.doc_id, posting.term_frequency
+                doc_weight = tf(term_freq)
+                scores[doc_id] += postings
                 pass
+        
+        for doc_id, score in scores.items():
+            scores[doc_id] = score / self.documents[doc_id].length
 
+        for doc_id, score in scores.items():
+            print(f'{doc_id} : {score}')
+
+        return scores

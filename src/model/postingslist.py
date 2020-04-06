@@ -1,13 +1,18 @@
 from functools import reduce
 from itertools import accumulate
 
-from .posting import Posting
 from .util import inverse_accumulate
 from .util import union
 from .util import within_proximity
 
+import re
+
+_postingslist_delimiter = ' '
+_posting_delimiter = '/'
+_postingposition_delimiter = ','
+_posting_pattern = re.compile(f'^[0-9]*[{_posting_delimiter}][0-9]*[{_posting_delimiter}][0-9]+({_postingposition_delimiter}[0-9]+)*$')
+
 class PostingsList:
-    delimiter = ' '
 
     def __init__(self, postings=[]):
         self.postings = [p for p in postings]
@@ -17,7 +22,7 @@ class PostingsList:
         '''
         parses a string into a postings list object.
         '''
-        posting_strings = postings_list_string.split(PostingsList.delimiter)
+        posting_strings = postings_list_string.split(_postingslist_delimiter)
         postings_list = PostingsList([Posting.parse(p) for p in posting_strings])
         return postings_list
 
@@ -86,4 +91,57 @@ class PostingsList:
         return repr(self)
 
     def __repr__(self):
-        return PostingsList.delimiter.join([str(p) for p in self.postings])
+        return _postingslist_delimiter.join([str(p) for p in self.postings])
+
+
+class Posting:
+
+    def __init__(self, doc_id, term_frequency=0, positions=[]):
+        self.doc_id = doc_id
+        self.term_frequency = term_frequency
+        self.positions = [p for p in positions]
+
+    @classmethod
+    def parse(cls, posting_string):
+        '''
+        parses a string into a posting.
+        '''
+        if not _posting_pattern.match(posting_string):
+            raise ValueError(f'invalid format: {posting_string}')
+
+        doc_id, term_frequency, positions = posting_string.split(_posting_delimiter)
+        doc_id, term_frequency, positions = (
+                int(doc_id), 
+                int(term_frequency), 
+                [int(x) for x in positions.split(_postingposition_delimiter) if x != ''])
+        return Posting(doc_id, term_frequency, positions)
+
+    def compress(self):
+        '''
+        compresses posting's positional indexes.
+        '''
+        self.positions = inverse_accumulate(self.positions)
+        return self
+
+    def decompress(self):
+        '''
+        decompresses posting.
+        '''
+        self.positions = [p for p in accumulate(self.positions)]
+        return self
+    
+    def __str__(self):
+        doc_id = str(self.doc_id)
+        term_frequency = str(self.term_frequency)
+        positions = _postingposition_delimiter.join([str(x) for x in self.positions])
+        return _posting_delimiter.join([doc_id, term_frequency, positions])
+
+    def __repr__(self):
+        doc_id = str(self.doc_id)
+        term_frequency = str(self.term_frequency)
+        positions = _postingposition_delimiter.join([str(x) for x in self.positions])
+        return _posting_delimiter.join([doc_id, term_frequency, positions])
+
+
+
+

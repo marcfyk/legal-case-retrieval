@@ -1,4 +1,4 @@
-from model import Indexer
+from searchengine import Indexer
 
 postingsFile = 'postings.txt'
 dictionaryFile = 'dictionary.txt'

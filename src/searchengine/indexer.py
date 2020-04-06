@@ -6,10 +6,10 @@ from nltk import sent_tokenize
 from nltk import word_tokenize
 
 from .document import Document
-from .fileposition import FilePosition
 from .postingslist import Posting
 from .postingslist import PostingsList
 from .term import Term
+from .term import FilePosition
 from .util import tf
 from .util import stem
 from .util import has_any_alphanumeric

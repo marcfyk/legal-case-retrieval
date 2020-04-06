@@ -1,7 +1,7 @@
-from model import Query
-from model import ParseError
-from model import BooleanRetrievalModel
-from model import VectorSpaceModel
+from searchengine import Query
+from searchengine import ParseError
+from searchengine import BooleanRetrievalModel
+from searchengine import VectorSpaceModel
 
 import pickle
 

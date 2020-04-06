@@ -1,6 +1,7 @@
 from model import Query
 from model import ParseError
 from model import BooleanRetrievalModel
+from model import VectorSpaceModel
 
 import pickle
 
@@ -14,16 +15,17 @@ results_file = ''
 with open(dictionary_file, 'rb') as f:
     dictionary = pickle.load(f)
 
-brm = BooleanRetrievalModel(dictionary, postings_file)
+with open(document_file, 'rb') as f:
+    documents = pickle.load(f)
 
-for k, v in dictionary.items():
-    print(f'{k} : {v}')
+brm = BooleanRetrievalModel(dictionary, postings_file)
+vsm = VectorSpaceModel(dictionary, documents, postings_file)
 
 from model.util import stem
 while 1:
     query = input('enter query:\n')
     terms = [stem(t) for t in query.split(' ')]
-    # for t in terms:
-    #     print(brm.get_postings_list(t))
-    print(brm.retrieve(terms))
+    for t in terms:
+        postings_list = vsm.get_postings_list(t)
+    print(vsm.retrieve(terms))
     # print(Query.parse(query))

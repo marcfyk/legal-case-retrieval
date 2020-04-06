@@ -1,6 +1,5 @@
 from collections import deque
 
-
 import re
 
 single_quote = '\''

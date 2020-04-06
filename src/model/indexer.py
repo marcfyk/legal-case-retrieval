@@ -7,7 +7,7 @@ from nltk import word_tokenize
 
 from .document import Document
 from .fileposition import FilePosition
-from .posting import Posting
+from .postingslist import Posting
 from .postingslist import PostingsList
 from .term import Term
 from .util import tf

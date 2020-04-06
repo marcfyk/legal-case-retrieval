@@ -10,4 +10,4 @@ open(dictionaryFile, 'w+').close()
 open(documentFile, 'w+').close()
 
 indexer = Indexer(postingsFile, dictionaryFile, documentFile)
-indexer.index(dataFile, limit=1)
+indexer.index(dataFile, limit=5)

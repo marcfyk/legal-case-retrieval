@@ -63,7 +63,7 @@ class Indexer:
         returns a set of terms
         '''
         index = 0
-        terms = defaultdict(lambda: [])
+        terms = defaultdict(list)
         for sentence in sent_tokenize(content):
             for word in word_tokenize(sentence):
                 if has_any_alphanumeric(word):

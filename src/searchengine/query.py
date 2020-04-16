@@ -1,4 +1,4 @@
-from collections import deque
+from .util import stem
 
 import re
 
@@ -41,7 +41,7 @@ class Query:
         if len(tokens) == 1:
             if and_operator in tokens[0]:
                 raise ParseError(f'improper use of {and_operator} operator in query: {tokens[0]}')
-            free_text_tokens = tokens[0].split(' ')
+            free_text_tokens = [stem(t) for t in tokens[0].split(' ')]
             return Query(free_text=free_text_tokens)
 
         q = Query()
@@ -50,7 +50,8 @@ class Query:
             if t == '':
                 continue
             elif i % 2 != 0:
-                q.phrases.append(t)
+                stemmed_phrase = ' '.join([stem(term) for term in t.split(' ')])
+                q.phrases.append(stemmed_phrase)
             else:
                 free_text_tokens = t.split(' ')
                 if and_operator in free_text_tokens[1:len(free_text_tokens) - 1]:
@@ -72,6 +73,8 @@ class Query:
                         raise ParseError(f'missing {and_operator} operator in query: {t}')
                     q.free_text.extend(free_text_tokens[1:-1])
         
+        print(q)
+        q.free_text = [stem(t) for t in q.free_text]
         return q
 
     def __repr__(self):

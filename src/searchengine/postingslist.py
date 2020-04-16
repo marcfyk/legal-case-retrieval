@@ -45,9 +45,10 @@ class PostingsList:
                 elif id1 > id2:
                     n2 = next(i2)
                 else:
-                    if within_proximity(n1.positions, n2.positions, distance=distance):
-                        print(f'in proximity')
-                        output.add(n2)
+                    indexes = within_proximity(n1.positions, n2.positions, distance=distance)
+                    if indexes:
+                        n = Posting(n2.doc_id, len(indexes), indexes)
+                        output.add(n)
                     n1, n2 = next(i1), next(i2)
         except StopIteration:
             return output

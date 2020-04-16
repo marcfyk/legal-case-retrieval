@@ -29,12 +29,9 @@ class BooleanRetrievalModel:
         checks if terms are within proximity of each other by using the positional index in
         each postings list of the terms.
         '''
-        filtered_terms = [t for t in terms if t in self.dictionary]
-        if not filtered_terms:
-            return PostingsList()
         merge = PostingsList.merge
         get_postings_list = self.get_postings_list
-        postings_lists = [get_postings_list(x) for x in filtered_terms]
-        common_postings = reduce(lambda x, y: merge(x, y, distance=1), postings_lists)
-        return common_postings
+        postings_lists = [get_postings_list(t) for t in terms]
+        result_postings_list = reduce(lambda x, y: merge(x, y, distance=1), postings_lists)
+        return [p.doc_id for p in result_postings_list]
 

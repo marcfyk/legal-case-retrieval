@@ -1,3 +1,11 @@
+#!/usr/bin/python3
+import re
+import nltk
+import sys
+import getopt
+
+from os import path
+
 from searchengine import Indexer
 
 postingsFile = 'postings.txt'
@@ -10,4 +18,5 @@ open(dictionaryFile, 'w+').close()
 open(documentFile, 'w+').close()
 
 indexer = Indexer(postingsFile, dictionaryFile, documentFile)
-indexer.index(dataFile, limit=5)
+indexer.index(dataFile, limit=100)
+

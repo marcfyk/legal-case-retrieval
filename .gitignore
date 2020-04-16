@@ -2,4 +2,4 @@
 *.pdf
 src/data
 src/queries
-src/model/__pycache__
+src/searchengine/__pycache__

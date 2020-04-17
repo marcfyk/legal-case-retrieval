@@ -19,7 +19,7 @@ class BooleanRetrievalModel:
         '''
         if term not in self.dictionary:
             return PostingsList()
-        offset = self.dictionary[term].file_position.offset
+        offset = self.dictionary[term].offset
         line = read_line_from_file(self.postings_file, offset)
         return PostingsList.parse(line).decompress()
 
@@ -29,6 +29,7 @@ class BooleanRetrievalModel:
         checks if terms are within proximity of each other by using the positional index in
         each postings list of the terms.
         '''
+        print(f'boolean search on {terms}')
         merge = PostingsList.merge
         get_postings_list = self.get_postings_list
         postings_lists = [get_postings_list(t) for t in terms]

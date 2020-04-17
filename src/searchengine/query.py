@@ -8,77 +8,69 @@ and_operator = 'AND'
 
 class Query:
     '''
-    represents a query, containing two fields: free_text and phrases.
-    These represent what is to be queried as a free text search on a vector space model,
-    and what is to be searched as a phrase query on a boolean retrieval model.
-
-    free_text: list of tokens to be queried via vector space model.
-    phrases: list of phrases to be queried in conjunction via boolean retrieval model.
+    represents a query.
+    terms -> list of terms/phrases
+    is_boolean_query -> indicates if query requires an exact match or not.
     '''
 
-    def __init__(self, free_text=[], phrases=[]):
-        self.free_text = [t for t in free_text]
-        self.phrases = [t for t in phrases]
+    def __init__(self, terms=[], is_boolean_query=False):
+        self.terms = [t for t in terms]
+        self.is_boolean_query = is_boolean_query
 
     @classmethod
-    def parse(cls, query):
+    def parse_free_text_query(cls, line):
         '''
-        parses a query string into a Query object. If there are any format errors, a ParseError is
-        raised along with a message.
+        parses a line into a query object for vector space retrieval.
         '''
+        terms = [stem(t) for t in line.strip().split(' ')] # stems each term in the line.
+        return Query(terms=terms)
 
-        # for simplicity, queries should not have single quotes.
-        if single_quote in query:
-            raise ParseError(f'please use ({double_quote}) quotes instead of ({single_quote}) quotes')
+    @classmethod
+    def parse_boolean_query(cls, line):
+        '''
+        parses a line into a query object for boolean retrieval.
+        any invalid format in line will throw a ParseError.
+        checks for:
+        1. "AND" must be inbetween terms/phrases
+        2. phrases must be start and end with double quotes
+        3. terms should only contain one word (multiple terms should be chained with "AND")
+        '''
+        terms = []
+        tokens = [t.strip() for t in line.split(and_operator)]
 
-        # checks if quotes are matching (every opening quote has a closing quote) and assuming there are no
-        # nested quotes
-        if query.count(double_quote) % 2 == 1:
-            raise ParseError(f'unmatching quotes detected in {query}')
+        # checks for invalid use of AND, ie: " AND <term>" or "<term> AND" or "AND"
+        if not all(tokens):
+            raise ParseError(f'"{and_operator}" not used properly')
 
-        tokens = [t.strip() for t in query.split(double_quote)] 
-
-        if len(tokens) == 1:
-            if and_operator in tokens[0]:
-                raise ParseError(f'improper use of {and_operator} operator in query: {tokens[0]}')
-            free_text_tokens = [stem(t) for t in tokens[0].split(' ')]
-            return Query(free_text=free_text_tokens)
-
-        q = Query()
-        for i in range(len(tokens)):
-            t = tokens[i]
-            if t == '':
-                continue
-            elif i % 2 != 0:
-                stemmed_phrase = ' '.join([stem(term) for term in t.split(' ')])
-                q.phrases.append(stemmed_phrase)
+        for token in tokens:
+            if not token.startswith(double_quote) and not token.endswith(double_quote):
+                if len(token.split(' ')) > 1:
+                    raise ParseError(f'multiple terms should be in a phrase wrapped in quotes: {token}')
+                terms.append(token)
+            elif token.startswith(double_quote) and token.endswith(double_quote):
+                terms.append(token[1:-1].strip())
             else:
-                free_text_tokens = t.split(' ')
-                if and_operator in free_text_tokens[1:len(free_text_tokens) - 1]:
-                    raise ParseError(f'improper use of {and_operator} operator in query: {t}')
-                if i == 0:
-                    if free_text_tokens[0] == and_operator:
-                        raise ParseError(f'improper use of {and_operator} operator in query: {t}')
-                    if free_text_tokens[-1] != and_operator:
-                        raise ParseError(f'missing {and_operator} operator in query: {t}')
-                    q.free_text.extend(free_text_tokens[:-1])
-                elif i == len(tokens) - 1:
-                    if free_text_tokens[0] != and_operator:
-                        raise ParseError(f'missing {and_operator} operator in query: {t}')
-                    if free_text_tokens[-1] == and_operator:
-                        raise ParseError(f'improper use of {and_operator} operator in query: {t}')
-                    q.free_text.extend(free_text_tokens[1:])
-                else:
-                    if free_text_tokens[0] != and_operator or free_text_tokens[-1] != and_operator:
-                        raise ParseError(f'missing {and_operator} operator in query: {t}')
-                    q.free_text.extend(free_text_tokens[1:-1])
-        
-        print(q)
-        q.free_text = [stem(t) for t in q.free_text]
-        return q
+                raise ParseError(f'mismatched quotes found in {token}')
 
+        return Query(terms=terms, is_boolean_query=True)
+
+    @classmethod
+    def parse(cls, line):
+        '''
+        parses line and determines the type of query the line contains.
+        if there is "AND" or double quotes in the line, 
+        it indicates that the query contains a phrase / and operator.
+        therefore it would mean that the query requires exact match.
+        if not, then it is a free text query.
+        '''
+        if and_operator in line or double_quote in line:
+            return cls.parse_boolean_query(line)
+        else:
+            return cls.parse_free_text_query(line)
+
+                        
     def __repr__(self):
-        return f'free_text: {self.free_text}\nphrases: {self.phrases}'
+        return f'terms: {self.terms}\nboolean_query: {self.is_boolean_query}'
 
 
 class ParseError(Exception):

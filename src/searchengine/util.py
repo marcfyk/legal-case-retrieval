@@ -1,16 +1,41 @@
+from datetime import datetime
 from math import log10
+from pickle import dump
+from pickle import load
 from nltk import PorterStemmer
 
+from .document import Document
+from .term import Term
+
 porter_stemmer = PorterStemmer()
+date_format = '%Y-%m-%d %H:%M:%S'
+
+def date_to_string(date):
+    '''
+    converts a date object to a string
+    output format: yyyy-mm-dd hh:mm:ss
+    '''
+    return datetime.strftime(date, date_format)
+
+def string_to_date(string):
+    '''
+    converts a string to a date object
+    required format: yyyy-mm-dd hh:mm:ss
+    '''
+    return datetime.strptime(string, date_format)
 
 def tf(f):
+    if f == 0:
+        return 0
     return 1 + log10(f)
 
 def idf(n, d):
+    if d == 0:
+        return 0
     return log10(n / d)
 
 def stem(word):
-    return porter_stemmer.stem(word.casefold())
+    return porter_stemmer.stem(word.strip().casefold())
 
 def has_any_alphanumeric(word):
     '''
@@ -139,4 +164,34 @@ def within_proximity(l1, l2, distance=0):
     shifted_l1 = [i + distance for i in l1]
     match = union(shifted_l1, l2)
     return match
+
+def write_dictionary(dictionary, file_to_write):
+    data = [[k, list(v.__dict__.values())] for k, v in dictionary.items()]
+    with open(file_to_write, 'wb') as f:
+        dump(data, f)
+
+def write_documents(documents, file_to_write):
+    data = [[k, list(v.__dict__.values())] for k, v in documents.items()]
+    for k, v in data:
+        v[1] = date_to_string(v[1])
+    with open(file_to_write, 'wb') as f:
+        dump(data, f)
+
+def load_dictionary(file_to_load):
+    with open(file_to_load, 'rb') as f:
+        data = load(f)
+    dictionary = {}
+    for k, v in data:
+        doc_frequency, offset = v[0], v[1]
+        dictionary[k] = Term(doc_frequency, offset=offset)
+    return dictionary
+
+def load_documents(file_to_load):
+    with open(file_to_load, 'rb') as f:
+        data = load(f)
+    documents = {}
+    for k, v in data:
+        title, date_posted, court, length = v[0], string_to_date(v[1]), v[2], v[3]
+        documents[k] = Document(title, date_posted, court, length)
+    return documents
 

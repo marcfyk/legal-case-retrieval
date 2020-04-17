@@ -1,14 +1,16 @@
 from searchengine import Query
 from searchengine import ParseError
 from searchengine import SearchEngine
-
-import pickle
+from searchengine import load_dictionary
+from searchengine import load_documents
 
 postings_file = 'postings.txt'
 dictionary_file = 'dictionary.txt'
 document_file = 'document.txt'
 data_file = 'data/dataset.csv'
-query_file = 'data/q1.txt'
+q1_file = 'data/q1.txt'
+q2_file = 'data/q2.txt'
+q3_file = 'data/q3.txt'
 results_file = ''
 
 def read_query(query_file):
@@ -20,20 +22,28 @@ def read_query(query_file):
         while line:
             relevant_doc_ids.append(int(line.strip()))
             line = f.readline()
-    print(f'query: {query}')
+
+    print(f'query object: {query}')
     print(f'relevant_docs: {relevant_doc_ids}')
     return Query.parse(query), relevant_doc_ids
 
-with open(dictionary_file, 'rb') as f:
-    dictionary = pickle.load(f)
+def search_query(query_obj, relevant_doc_ids, search_engine):
+    try:
+        result = search_engine.search(query_obj, relevant_doc_ids)
+        print(f'result: {result}')
+    except ParseError as e:
+        print(f'parse error encountered: {e}')
 
-with open(document_file, 'rb') as f:
-    documents = pickle.load(f)
+def search(query_file, search_engine):
+    query_obj, relevant_doc_ids = read_query(query_file)
+    search_query(query_obj, relevant_doc_ids, search_engine)
+    print()
 
-query, relevant_doc_ids = read_query(query_file)
-print(f'query object:\n{query}')
+dictionary = load_dictionary(dictionary_file)
+documents = load_documents(document_file)
 search_engine = SearchEngine(dictionary, documents, postings_file)
-try:
-    result = search_engine.free_text_query(query.free_text, relevant_doc_ids)
-except ParseError as e:
-    print(f'parse error encountered: {e}')
+
+search(q1_file, search_engine)
+search(q2_file, search_engine)
+search(q3_file, search_engine)
+

@@ -9,14 +9,15 @@ from .document import Document
 from .postingslist import Posting
 from .postingslist import PostingsList
 from .term import Term
-from .term import FilePosition
+from .util import string_to_date
 from .util import tf
 from .util import stem
 from .util import has_any_alphanumeric
 from .util import get_line_pointers
+from .util import write_dictionary
+from .util import write_documents
 
 import csv
-import datetime
 import math
 import os
 import pickle
@@ -49,8 +50,8 @@ class Indexer:
             next(data)
             for doc_id, title, content, date_posted, court in data:
                 doc_id = int(doc_id)
-                date_posted = datetime.datetime.strptime(date_posted, '%Y-%m-%d %H:%M:%S')
-                yield Document(doc_id, title, date_posted, court), content
+                date_posted = string_to_date(date_posted)
+                yield doc_id, Document(title, date_posted, court), content
 
     def count_documents(self, data_file):
         csv.field_size_limit(sys.maxsize)
@@ -59,30 +60,24 @@ class Indexer:
             return reduce(adder, csv.reader(f), 0) - 1
 
     def _index_content(self, content):
-        '''
-        returns a set of terms
-        '''
-        index = 0
         terms = defaultdict(list)
-        for sentence in sent_tokenize(content):
-            for word in word_tokenize(sentence):
-                if has_any_alphanumeric(word):
-                    term = stem(word.strip().casefold())
-                    terms[term].append(index)
-                    index += 1
-                    
+        words = word_tokenize(content)
+        for index, word in enumerate(words):
+            if has_any_alphanumeric(word):
+                term = stem(word.strip().casefold())
+                terms[word].append(index)
         for term in terms:
             if term not in self.dictionary:
-                self.dictionary[term] = Term(term, 0, FilePosition(line=len(self.dictionary)))
+                self.dictionary[term] = Term(0, line=len(self.dictionary))
             self.dictionary[term].doc_frequency += 1
-
+        
         return terms
 
     def write_to_postings_file(self, term_postings):
         '''
         writes postings of terms to postings file.
         '''
-        line_postings_pairs = [(self.dictionary[t].file_position.line, p) for t, p in term_postings.items()]
+        line_postings_pairs = [(self.dictionary[t].line, p) for t, p in term_postings.items()]
         line_postings_pairs = sorted(line_postings_pairs, key=lambda k: k[0], reverse=True)
         temp_postings_file = 'temp-postings.txt'
         with open(self.postings_file, 'a+') as f, open(temp_postings_file, 'w+') as t:
@@ -113,33 +108,35 @@ class Indexer:
         '''
         doc_generator = self._generate_documents(data_file)
         doc_count = 0
-        for doc, content in doc_generator:
+        for doc_id, doc, content in doc_generator:
             if doc_count == limit:
                 break
             term_postings = {}
-            self.documents[doc.doc_id] = doc
+            self.documents[doc_id] = doc
             length = 0
             for term, positions in self._index_content(content).items():
                 term_frequency = len(positions)
-                term_postings[term] = Posting(doc.doc_id, term_frequency, positions)
+                term_postings[term] = Posting(doc_id, term_frequency, positions)
                 length += tf(term_frequency) ** 2
             doc.length = length
             doc_count += 1
             self.write_to_postings_file(term_postings)
-            print(f'indexed {doc_count}', end='\r')
+            print(f'indexed {doc_count} documents', end='\r')
+        print(f'indexed {doc_count} documents')
         
+        # update the euclidean distance of documents (vector length)
         for doc in self.documents.values():
             doc.length = math.sqrt(doc.length)
 
         pointers = get_line_pointers(self.postings_file)
         for term, pointer in zip(self.dictionary.values(), pointers):
-            term.file_position.offset = pointer
+            term.offset = pointer # update pointer for efficient disk read of terms' postings lists.
+            del term.line # remove line attribute as it is not needed after indexing.
 
         print(f'completed indexing {doc_count} documents')
 
-        with open(self.dictionary_file, 'wb') as dictionary_file, open(self.document_file, 'wb') as document_file:
-            pickle.dump(self.dictionary, dictionary_file)
-            pickle.dump(self.documents, document_file)
+        write_dictionary(self.dictionary, self.dictionary_file)
+        write_documents(self.documents, self.document_file)
         
         print(f'saved dictionary and document meta data')
 

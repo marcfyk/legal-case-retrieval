@@ -16,6 +16,8 @@ class VectorSpaceModel:
     in the dictionary indicates that the weight is zero for that term.
 
     Therefore document and query vectors are all represented as dictionaries.
+
+    dictionary -> dictionary of term -> term objects
     '''
 
     def __init__(self, dictionary, documents, postings_file):
@@ -30,7 +32,7 @@ class VectorSpaceModel:
         '''
         if term not in self.dictionary:
             return PostingsList()
-        offset = self.dictionary[term].file_position.offset
+        offset = self.dictionary[term].offset
         line = read_line_from_file(self.postings_file, offset)
         return PostingsList.parse(line).decompress()
 
@@ -77,13 +79,15 @@ class VectorSpaceModel:
         return vector
 
     def _build_adjusted_vector_query(self, query_vector, relevant_doc_ids=[]):
-        doc_vectors = defaultdict(dict)
+        doc_vectors = defaultdict(lambda: defaultdict(int))
+
+        relevant_doc_ids_set = set(relevant_doc_ids)
 
         for term, query_weight in query_vector.items():
             postings_list = self._get_postings_list(term)
             for posting in postings_list:
                 doc_id, term_freq = posting.doc_id, posting.term_frequency
-                if doc_id in relevant_doc_ids:
+                if doc_id in relevant_doc_ids_set:
                     doc_weight = tf(term_freq)
                     doc_vectors[doc_id][term] = doc_weight
 
@@ -92,21 +96,30 @@ class VectorSpaceModel:
             for t, w in vector:
                 vector[t] = w / doc_length
 
+        for doc_id, vector in doc_vectors.items():
+            print(f'{doc_id} : {vector}')
+
         centroid = self._build_centroid(list(doc_vectors.values()))
+        print(f'centroid: {centroid}')
         adjusted_vector = self._build_adjusted_query(query_vector, centroid)
 
         return adjusted_vector
 
     def retrieve(self, terms, relevant_doc_ids=[]):
+        print(f'vector space search on {terms}')
         query_vector = self._build_query_vector(terms)
-        print(f'relevant_doc_ids : {[i for i in relevant_doc_ids if i in self.documents]}')
+
+        print(f'original vector: {query_vector}')
+
         if relevant_doc_ids:
             query_vector = self._build_adjusted_vector_query(query_vector, relevant_doc_ids)
-            print(f'adjusted query: {query_vector}')
-        scores = defaultdict(int)
+            print(f'adjusted vector: {query_vector}')
         
+        return self.rank(query_vector, relevant_doc_ids)
+
+    def rank(self, query_vector, relevant_doc_ids):
+        scores = defaultdict(int)
         for term, query_weight in query_vector.items():
-            print(f'{term} : {query_weight}')
             postings_list = self._get_postings_list(term)
             for posting in postings_list:
                 doc_id, term_freq = posting.doc_id, posting.term_frequency
@@ -119,12 +132,15 @@ class VectorSpaceModel:
         score_objs = [Score(doc_id, score) for doc_id, score in scores.items()]
         max_score_heap = MaxScoreHeap(score_objs)
 
-        output = []
+        output = [doc_id for doc_id in relevant_doc_ids]
+        top_results = set(relevant_doc_ids)
         while len(max_score_heap):
-            output.append(max_score_heap.pop().doc_id)
+            next_score = max_score_heap.pop()
+            print(f'score: {next_score}')
+            if next_score.doc_id not in top_results:
+                output.append(next_score.doc_id)
 
         return output
-
 
 class Score:
     '''

@@ -3,29 +3,37 @@ from .booleanretrievalmodel import BooleanRetrievalModel
 from .vectorspacemodel import VectorSpaceModel
 
 class SearchEngine:
+    '''
+    facilitates all searches.
+
+    manages a boolean retrieval model and vector space model to rank searches.
+    can search free text or phrasal / boolean queries.
+    '''
 
     def __init__(self, dictionary, documents, postings_file):
         self.dictionary = dictionary
         self.documents = documents
         self.postings_file = postings_file
-        self.brm = BooleanRetrievalModel(dictionary, postings_file)
-        self.vsm = VectorSpaceModel(dictionary, documents, postings_file)
+        self.boolean_retrieval_model = BooleanRetrievalModel(dictionary, postings_file)
+        self.vector_space_model = VectorSpaceModel(dictionary, documents, postings_file)
 
-    def search(self, query, relevent_doc_ids):
-        free_text = query.free_text
-        phrases = query.phrases
-        phrases_result = self.phrase_query(phrases)
-        free_text_result = self.free_text_query(free_text, relevent_doc_ids)
-        result = [doc_id for doc_id in free_text_result if doc_id in phrases_result]
-        return result
+    def search(self, query, relevant_doc_ids=[]):
+        terms = query.terms
 
-    def free_text_query(self, free_text_terms, relevent_doc_ids=[]):
-        return self.vsm.retrieve(free_text_terms, relevent_doc_ids)
-        
-    def phrase_query(self, phrases):
-        phrase_terms = [p.split(' ') for p in phrases]
-        phrase_results = [set(self.brm.retrieve(terms)) for terms in phrase_terms]
-        if phrase_results and all(phrase_results):
-            return reduce(lambda x, y: x.intersection(y), phrase_results[1:], set(phrase_results[0]))
+        if query.is_boolean_query:
+            boolean_result = [set(self.boolean_retrieval_model.retrieve(t)) for t in terms]
+            if all(boolean_result):
+                boolean_result = reduce(lambda x, y: x.intersection(y), boolean_result[1:], boolean_result[0])
+            else:
+                boolean_result = set()
+
+            flattened_terms = []
+            for term in terms:
+                flattened_terms.extend([t.strip() for t in term.split(' ')])
+            vector_result = self.vector_space_model.retrieve(flattened_terms, relevant_doc_ids)
+            matches = set(relevant_doc_ids).union(boolean_result)
+            result = [doc_id for doc_id in relevant_doc_ids]
+            result.extend([doc_id for doc_id in vector_result if doc_id in matches])
+            return result
         else:
-            return set()
+            return self.vector_space_model.retrieve(terms, relevant_doc_ids)

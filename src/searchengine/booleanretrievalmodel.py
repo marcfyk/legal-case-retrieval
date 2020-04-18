@@ -6,6 +6,8 @@ from .util import stem
 class BooleanRetrievalModel:
     '''
     boolean retieval model.
+    retrieves a list of doc ids that match the terms it is given.
+    if a term is a phrase, the terms relative positioning is enforced when filtering doc ids.
     '''
 
     def __init__(self, dictionary, postings_file):

@@ -168,16 +168,16 @@ def within_proximity(l1, l2, distance=0):
 
 def write_dictionary(dictionary, file_to_write):
     data = [[k, list(v.__dict__.values())] for k, v in dictionary.items()]
-    with open(file_to_write, 'wb', encoding='utf8') as f:
+    with open(file_to_write, 'wb') as f:
         dump(data, f)
 
 def write_documents(documents, file_to_write):
     data = [[k, list(v.__dict__.values())] for k, v in documents.items()]
-    with open(file_to_write, 'wb', encoding='utf8') as f:
+    with open(file_to_write, 'wb') as f:
         dump(data, f)
 
 def load_dictionary(file_to_load):
-    with open(file_to_load, 'rb', encoding='utf8') as f:
+    with open(file_to_load, 'rb') as f:
         data = load(f)
     dictionary = {}
     for k, v in data:
@@ -188,7 +188,7 @@ def load_dictionary(file_to_load):
     return dictionary
 
 def load_documents(file_to_load):
-    with open(file_to_load, 'rb', encoding='utf8') as f:
+    with open(file_to_load, 'rb') as f:
         data = load(f)
     documents = {}
     for k, v in data:

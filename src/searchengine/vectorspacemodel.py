@@ -37,15 +37,24 @@ class VectorSpaceModel:
         return PostingsList.parse(line).decompress()
 
     def _build_query_vector(self, terms):
+        '''
+        builds a query vector from the given terms.
+        weights of the vector are derived from tf_idf weighting.
+        '''
         vector = defaultdict(int)
         existing_terms = [t for t in terms if t in self.dictionary]
         for t in existing_terms:
             vector[t] += 1
         for t, f in vector.items():
-            vector[t] = tf(f) * idf(len(self.documents), self.dictionary[t].doc_frequency)
+            tf_idf = tf(f) * idf(len(self.documents), self.dictionary[t].doc_frequency)
+            vector[t] = tf_idf if tf_idf >= 0 else 0
         return vector
 
     def _build_document_vector(self, terms):
+        '''
+        builds a document vector from the given terms.
+        weights of the vector are derived from tf weighting.
+        '''
         vector = defaultdict(int)
         existing_terms = [t for t in terms if t in self.dictionary]
         for t in existing_terms:
@@ -54,12 +63,10 @@ class VectorSpaceModel:
             vector[t] = tf(f)
         return vector
 
-    def _get_vector_magnitude(self, vector):
-        weights = vector.values()
-        squares = [w ** 2 for w in weights]
-        return sqrt(sum(squares))
-
     def _build_centroid(self, vectors):
+        '''
+        returns a centroid of a list of vectors.
+        '''
         centroid_vector = defaultdict(int)
         for vector in vectors:
             for t, w in vector.items():
@@ -69,8 +76,11 @@ class VectorSpaceModel:
         return centroid_vector
 
     def _build_adjusted_query(self, query_vector, centroid):
-        query_coefficient = 1
-        centroid_coefficient = 1
+        '''
+        returns an adjusted vector calculated from a query vector and a centroid.
+        '''
+        query_coefficient = 0.5
+        centroid_coefficient = 0.5
         vector = defaultdict(int)
         for t, w in query_vector.items():
             vector[t] += query_coefficient * w
@@ -106,6 +116,9 @@ class VectorSpaceModel:
         return adjusted_vector
 
     def retrieve(self, terms, relevant_doc_ids=[]):
+        '''
+        retrieves a ranked list of documents from searching the given terms.
+        '''
         print(f'vector space search on {terms}')
         query_vector = self._build_query_vector(terms)
 
@@ -118,6 +131,9 @@ class VectorSpaceModel:
         return self.rank(query_vector, relevant_doc_ids)
 
     def rank(self, query_vector, relevant_doc_ids):
+        '''
+        ranks doc ids with the given query vector using cosine scoring.
+        '''
         scores = defaultdict(int)
         for term, query_weight in query_vector.items():
             postings_list = self._get_postings_list(term)
@@ -146,6 +162,7 @@ class VectorSpaceModel:
 class Score:
     '''
     represents a doc_id and score pairing.
+    ordering is defined to facilitate MaxScoreHeap operations.
     '''
 
     def __init__(self, doc_id, score):

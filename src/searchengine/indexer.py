@@ -89,6 +89,10 @@ class Indexer:
         return terms, index + offset
 
     def _write_to_postings_file(self, postings_lists):
+        '''
+        writes postings lists to file
+        each line denotes a postings list
+        '''
         sort_by_line_comparator = lambda k: self.dictionary[k[0]].line
         to_write = sorted(postings_lists.items(), key=sort_by_line_comparator)
         with open(self.postings_file, 'a+', encoding='utf8') as f:

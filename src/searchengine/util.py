@@ -167,34 +167,20 @@ def within_proximity(l1, l2, distance=0):
     return match
 
 def write_dictionary(dictionary, file_to_write):
-    data = [[k, list(v.__dict__.values())] for k, v in dictionary.items()]
     with open(file_to_write, 'wb') as f:
-        dump(data, f)
+        dump(dictionary, f)
 
 def write_documents(documents, file_to_write):
-    data = [[k, list(v.__dict__.values())] for k, v in documents.items()]
     with open(file_to_write, 'wb') as f:
-        dump(data, f)
+        dump(documents, f)
 
 def load_dictionary(file_to_load):
     with open(file_to_load, 'rb') as f:
-        data = load(f)
-    dictionary = {}
-    for k, v in data:
-        doc_frequency, offset = v[0], v[1]
-        term = Term(doc_frequency=doc_frequency, offset=offset)
-        del term.line
-        dictionary[k] = term
+        dictionary = load(f)
     return dictionary
 
 def load_documents(file_to_load):
     with open(file_to_load, 'rb') as f:
-        data = load(f)
-    documents = {}
-    for k, v in data:
-        d, length = v[0], v[1]
-        doc = Document(data=d, length=length)
-        del doc.word_count
-        documents[k] = doc
+        documents = load(f)
     return documents
 

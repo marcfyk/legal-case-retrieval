@@ -179,18 +179,22 @@ def write_documents(documents, file_to_write):
 def load_dictionary(file_to_load):
     with open(file_to_load, 'rb') as f:
         data = load(f)
-    dictionary = defaultdict(lambda: Term())
+    dictionary = {}
     for k, v in data:
         doc_frequency, offset = v[0], v[1]
-        dictionary[k] = Term(doc_frequency, offset=offset)
+        term = Term(doc_frequency=doc_frequency, offset=offset)
+        del term.line
+        dictionary[k] = term
     return dictionary
 
 def load_documents(file_to_load):
     with open(file_to_load, 'rb') as f:
         data = load(f)
-    documents = defaultdict(lambda: Document())
+    documents = {}
     for k, v in data:
-        data, length, word_count = v[0], v[1], v[2]
-        documents[k] = Document(data, length, word_count)
+        d, length = v[0], v[1]
+        doc = Document(data=d, length=length)
+        del doc.word_count
+        documents[k] = doc
     return documents
 

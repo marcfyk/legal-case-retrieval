@@ -11,5 +11,5 @@ class Document:
         self.data.append([title, date_posted, court])
 
     def __repr__(self):
-        return f'''length: {self.length}, word_count: {self.word_count}\ndata: {self.data}'''
+        return f'''data: {self.data}'''
 

@@ -94,7 +94,7 @@ class Indexer:
         with open(self.postings_file, 'a+') as f:
             f.seek(0)
             for term, postings_list in to_write:
-                f.write(str(postings_list) + '\n')
+                f.write(str(postings_list.compress()) + '\n')
 
     def index(self, data_file, limit=-1):
         '''
@@ -123,11 +123,12 @@ class Indexer:
         # update the euclidean distance of documents (vector length)
         for doc in self.documents.values():
             doc.length = math.sqrt(doc.length)
+            del doc.word_count # remove word_count attribute, not necessary after indexing.
 
         pointers = get_line_pointers(self.postings_file)
         for term, pointer in zip(self.dictionary.values(), pointers):
             term.offset = pointer # update pointer for efficient disk read of terms' postings lists.
-            del term.line # remove line attribute as it is not needed after indexing.
+            del term.line # remove line attribute, not necessary after indexing.
 
         write_dictionary(self.dictionary, self.dictionary_file)
         print(f'saved dictionary to {self.dictionary_file}')

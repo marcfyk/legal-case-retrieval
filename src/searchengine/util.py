@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 from math import log10
 from pickle import dump
@@ -30,7 +31,7 @@ def tf(f):
     return 1 + log10(f)
 
 def idf(n, d):
-    if d == 0:
+    if n == 0 or d == 0:
         return 0
     return log10(n / d)
 
@@ -172,15 +173,13 @@ def write_dictionary(dictionary, file_to_write):
 
 def write_documents(documents, file_to_write):
     data = [[k, list(v.__dict__.values())] for k, v in documents.items()]
-    for k, v in data:
-        v[1] = date_to_string(v[1])
     with open(file_to_write, 'wb') as f:
         dump(data, f)
 
 def load_dictionary(file_to_load):
     with open(file_to_load, 'rb') as f:
         data = load(f)
-    dictionary = {}
+    dictionary = defaultdict(lambda: Term())
     for k, v in data:
         doc_frequency, offset = v[0], v[1]
         dictionary[k] = Term(doc_frequency, offset=offset)
@@ -189,9 +188,9 @@ def load_dictionary(file_to_load):
 def load_documents(file_to_load):
     with open(file_to_load, 'rb') as f:
         data = load(f)
-    documents = {}
+    documents = defaultdict(lambda: Document())
     for k, v in data:
-        title, date_posted, court, length = v[0], string_to_date(v[1]), v[2], v[3]
-        documents[k] = Document(title, date_posted, court, length)
+        data, length, word_count = v[0], v[1], v[2]
+        documents[k] = Document(data, length, word_count)
     return documents
 

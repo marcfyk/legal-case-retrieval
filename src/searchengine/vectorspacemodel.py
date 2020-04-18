@@ -127,6 +127,7 @@ class VectorSpaceModel:
                 scores[doc_id] += doc_weight * query_weight
         
         for doc_id, score in scores.items():
+            print(doc_id, score)
             scores[doc_id] = score / self.documents[doc_id].length
 
         score_objs = [Score(doc_id, score) for doc_id, score in scores.items()]

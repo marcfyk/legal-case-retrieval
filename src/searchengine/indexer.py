@@ -1,4 +1,5 @@
 from collections import defaultdict
+from collections import deque
 from functools import reduce
 
 from nltk import PorterStemmer
@@ -26,23 +27,23 @@ import sys
 class Indexer:
     '''
     indexer class responsible for indexing documents.
+
+    postings_file -> file to store postings.
+    dictionary_file -> file to store dictionary of terms.
+    document_file -> file to store documents' meta data.
     '''
 
     def __init__(self, postings_file, dictionary_file, document_file):
-        '''
-        postings_file -> file to store postings.
-        dictionary_file -> file to store dictionary of terms.
-        document_file -> file to store documents' meta data.
-        '''
         self.postings_file = postings_file
         self.dictionary_file = dictionary_file
         self.document_file = document_file
-        self.dictionary = {}
-        self.documents = {}
+        self.dictionary = defaultdict(lambda: Term())
+        self.documents = defaultdict(lambda: Document())
 
     def _generate_documents(self, data_file):
         '''
-        generator for yielding (Document, content) tuples.
+        generator for yielding (doc id, title, date_posted, court, content) tuples
+        allows program to read document by document without loading everything into memory
         '''
         csv.field_size_limit(sys.maxsize)
         with open(data_file, newline='') as f:
@@ -51,79 +52,74 @@ class Indexer:
             for doc_id, title, content, date_posted, court in data:
                 doc_id = int(doc_id)
                 date_posted = string_to_date(date_posted)
-                yield doc_id, Document(title, date_posted, court), content
+                yield doc_id, title, date_posted, court, content
 
     def count_documents(self, data_file):
+        '''
+        counts the total documents in the data file
+        this will iterate through all available documents in the file
+        '''
         csv.field_size_limit(sys.maxsize)
         adder = lambda x, y: x + 1
         with open(data_file, newline='') as f:
             return reduce(adder, csv.reader(f), 0) - 1
 
-    def _index_content(self, content):
+    def _index_content(self, content, offset):
+        '''
+        indexes the content of a single document
+        collects a dictionary of term -> list of positional indexes
+        only words that contain at least one alphanumeric character is stored as a term
+        however, positional indexes, takes into account all words, regardless of whether they are considered terms
+        this is to maintain accurate information on the absolute positions of terms (for a strict phrase query match)
+        '''
         terms = defaultdict(list)
         words = word_tokenize(content)
+
+        if not len(words):
+            return terms, offset
+
         for index, word in enumerate(words):
             if has_any_alphanumeric(word):
                 term = stem(word.strip().casefold())
-                terms[word].append(index)
+                terms[word].append(index + offset)
         for term in terms:
-            if term not in self.dictionary:
-                self.dictionary[term] = Term(0, line=len(self.dictionary))
+            self.dictionary[term].line = len(self.dictionary)
             self.dictionary[term].doc_frequency += 1
-        
-        return terms
 
-    def write_to_postings_file(self, term_postings):
-        '''
-        writes postings of terms to postings file.
-        '''
-        line_postings_pairs = [(self.dictionary[t].line, p) for t, p in term_postings.items()]
-        line_postings_pairs = sorted(line_postings_pairs, key=lambda k: k[0], reverse=True)
-        temp_postings_file = 'temp-postings.txt'
-        with open(self.postings_file, 'a+') as f, open(temp_postings_file, 'w+') as t:
+        return terms, index + offset
+
+    def _write_to_postings_file(self, postings_lists):
+        sort_by_line_comparator = lambda k: self.dictionary[k[0]].line
+        to_write = sorted(postings_lists.items(), key=sort_by_line_comparator)
+        with open(self.postings_file, 'a+') as f:
             f.seek(0)
-            line_index = 0
-            line_number, posting = line_postings_pairs[-1] if line_postings_pairs else (-1, [])
-            line = f.readline()
-            while line:
-                if line_number == line_index:
-                    postings_list = PostingsList.parse(line.strip()).decompress()
-                    postings_list.add(posting)
-                    t.write(str(postings_list.compress()) + '\n')
-                    line_postings_pairs.pop()
-                    line_number, posting = line_postings_pairs[-1] if line_postings_pairs else (-1, [])
-                else:
-                    t.write(line)
-                line_index += 1
-                line = f.readline()
-            while line_postings_pairs:
-                t.write(str(PostingsList([posting]).compress()) + '\n')
-                line_postings_pairs.pop()
-                line_number, posting = line_postings_pairs[-1] if line_postings_pairs else (-1, [])
-        os.replace(temp_postings_file, self.postings_file)
+            for term, postings_list in to_write:
+                f.write(str(postings_list) + '\n')
 
     def index(self, data_file, limit=-1):
         '''
         indexes documents in the data file.
+        builds dictionary of terms
+        builds a collection of document objects (contains meta data)
         '''
         doc_generator = self._generate_documents(data_file)
-        doc_count = 0
-        for doc_id, doc, content in doc_generator:
-            if doc_count == limit:
+        postings_lists = defaultdict(lambda: PostingsList())
+        for index, data in enumerate(doc_generator):
+            if index == limit:
                 break
-            term_postings = {}
-            self.documents[doc_id] = doc
-            length = 0
-            for term, positions in self._index_content(content).items():
+            doc_id, title, date_posted, court, content = data
+            doc = self.documents[doc_id]
+            doc.add(title, date_posted, court)
+            term_positions, word_count = self._index_content(content, doc.word_count)
+            doc.word_count = word_count
+            for term, positions in term_positions.items():
                 term_frequency = len(positions)
-                term_postings[term] = Posting(doc_id, term_frequency, positions)
-                length += tf(term_frequency) ** 2
-            doc.length = length
-            doc_count += 1
-            self.write_to_postings_file(term_postings)
-            print(f'indexed {doc_count} documents', end='\r')
-        print(f'indexed {doc_count} documents')
-        
+                postings_lists[term].add(Posting(doc_id, term_frequency, positions))
+                doc.length += tf(term_frequency) ** 2
+            print(f'indexed {index} documents', end='\r')
+        print(f'indexed {index} documents')
+        self._write_to_postings_file(postings_lists)
+
         # update the euclidean distance of documents (vector length)
         for doc in self.documents.values():
             doc.length = math.sqrt(doc.length)
@@ -133,10 +129,8 @@ class Indexer:
             term.offset = pointer # update pointer for efficient disk read of terms' postings lists.
             del term.line # remove line attribute as it is not needed after indexing.
 
-        print(f'completed indexing {doc_count} documents')
-
         write_dictionary(self.dictionary, self.dictionary_file)
+        print(f'saved dictionary to {self.dictionary_file}')
         write_documents(self.documents, self.document_file)
+        print(f'saved documents to {self.document_file}')
         
-        print(f'saved dictionary and document meta data')
-

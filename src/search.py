@@ -36,12 +36,16 @@ def search_query(query_obj, relevant_doc_ids, search_engine):
 
 def search(query_file, search_engine):
     query_obj, relevant_doc_ids = read_query(query_file)
+    print()
     search_query(query_obj, relevant_doc_ids, search_engine)
+    print()
     print()
 
 dictionary = load_dictionary(dictionary_file)
 documents = load_documents(document_file)
 search_engine = SearchEngine(dictionary, documents, postings_file)
+
+print(documents.keys())
 
 search(q1_file, search_engine)
 search(q2_file, search_engine)

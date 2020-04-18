@@ -11,7 +11,7 @@ data_file = 'data/dataset.csv'
 q1_file = 'data/q1.txt'
 q2_file = 'data/q2.txt'
 q3_file = 'data/q3.txt'
-results_file = ''
+results_file = 'output-file-of-results.txt'
 
 def read_query(query_file):
     query = ''
@@ -23,14 +23,14 @@ def read_query(query_file):
             relevant_doc_ids.append(int(line.strip()))
             line = f.readline()
 
-    print(f'query object: {query}')
-    print(f'relevant_docs: {relevant_doc_ids}')
+    print(f'query object: {query}\n')
+    print(f'relevant_docs: {relevant_doc_ids}\n')
     return Query.parse(query), relevant_doc_ids
 
 def search_query(query_obj, relevant_doc_ids, search_engine):
     try:
         result = search_engine.search(query_obj, relevant_doc_ids)
-        print(f'result: {result}')
+        print(f'result: {result}\n')
     except ParseError as e:
         print(f'parse error encountered: {e}')
 
@@ -44,8 +44,6 @@ def search(query_file, search_engine):
 dictionary = load_dictionary(dictionary_file)
 documents = load_documents(document_file)
 search_engine = SearchEngine(dictionary, documents, postings_file)
-
-print(documents.keys())
 
 search(q1_file, search_engine)
 search(q2_file, search_engine)

@@ -120,8 +120,8 @@ class Indexer:
                 term_frequency = len(positions)
                 postings_lists[term].add(Posting(doc_id, term_frequency, positions))
                 doc.length += tf(term_frequency) ** 2
-            print(f'indexed {index} documents', end='\r')
-        print(f'indexed {index} documents')
+            print(f'indexed {index + 1} documents', end='\r')
+        print(f'indexed {index + 1} documents')
         self._write_to_postings_file(postings_lists)
 
         # update the euclidean distance of documents (vector length)

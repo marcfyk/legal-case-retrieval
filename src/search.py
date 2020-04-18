@@ -16,7 +16,7 @@ results_file = ''
 def read_query(query_file):
     query = ''
     relevant_doc_ids = []
-    with open(query_file, 'r') as f:
+    with open(query_file, 'r', encoding='utf8') as f:
         query = f.readline().strip()
         line = f.readline()
         while line:

@@ -45,8 +45,8 @@ class Indexer:
         generator for yielding (doc id, title, date_posted, court, content) tuples
         allows program to read document by document without loading everything into memory
         '''
-        csv.field_size_limit(sys.maxsize)
-        with open(data_file, newline='') as f:
+        csv.field_size_limit((1 << 31) - 1)
+        with open(data_file, newline='', encoding='utf8') as f:
             data = csv.reader(f)
             next(data)
             for doc_id, title, content, date_posted, court in data:
@@ -61,7 +61,7 @@ class Indexer:
         '''
         csv.field_size_limit(sys.maxsize)
         adder = lambda x, y: x + 1
-        with open(data_file, newline='') as f:
+        with open(data_file, newline='', encoding='utf8') as f:
             return reduce(adder, csv.reader(f), 0) - 1
 
     def _index_content(self, content, offset):
@@ -91,7 +91,7 @@ class Indexer:
     def _write_to_postings_file(self, postings_lists):
         sort_by_line_comparator = lambda k: self.dictionary[k[0]].line
         to_write = sorted(postings_lists.items(), key=sort_by_line_comparator)
-        with open(self.postings_file, 'a+') as f:
+        with open(self.postings_file, 'a+', encoding='utf8') as f:
             f.seek(0)
             for term, postings_list in to_write:
                 f.write(str(postings_list.compress()) + '\n')

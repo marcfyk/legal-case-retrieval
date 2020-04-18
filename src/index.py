@@ -13,9 +13,9 @@ dictionaryFile = 'dictionary.txt'
 documentFile = 'document.txt'
 dataFile = 'data/dataset.csv'
 
-open(postingsFile, 'w+').close()
-open(dictionaryFile, 'w+').close()
-open(documentFile, 'w+').close()
+open(postingsFile, 'w+', encoding='utf8').close()
+open(dictionaryFile, 'w+', encoding='utf8').close()
+open(documentFile, 'w+', encoding='utf8').close()
 
 indexer = Indexer(postingsFile, dictionaryFile, documentFile)
 indexer.index(dataFile)

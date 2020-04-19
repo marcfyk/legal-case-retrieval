@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import datetime
 from math import log10
 from pickle import dump

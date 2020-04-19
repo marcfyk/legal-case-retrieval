@@ -1,4 +1,3 @@
-from collections import defaultdict
 from collections import deque
 from functools import reduce
 
@@ -12,6 +11,7 @@ from .postingslist import PostingsList
 from .term import Term
 from .util import string_to_date
 from .util import tf
+from .util import idf
 from .util import stem
 from .util import has_any_alphanumeric
 from .util import get_line_pointers
@@ -37,8 +37,8 @@ class Indexer:
         self.postings_file = postings_file
         self.dictionary_file = dictionary_file
         self.document_file = document_file
-        self.dictionary = defaultdict(lambda: Term())
-        self.documents = defaultdict(lambda: Document())
+        self.dictionary = {}
+        self.documents = {}
 
     def _generate_documents(self, data_file):
         '''
@@ -72,7 +72,7 @@ class Indexer:
         however, positional indexes, takes into account all words, regardless of whether they are considered terms
         this is to maintain accurate information on the absolute positions of terms (for a strict phrase query match)
         '''
-        terms = defaultdict(list)
+        terms = {}
         words = word_tokenize(content)
 
         if not len(words):
@@ -81,12 +81,35 @@ class Indexer:
         for index, word in enumerate(words):
             if has_any_alphanumeric(word):
                 term = stem(word.strip().casefold())
-                terms[word].append(index + offset)
+                if term not in terms:
+                    terms[term] = []
+                terms[term].append(index + offset)
         for term in terms:
+            if term not in self.dictionary:
+                self.dictionary[term] = Term()
             self.dictionary[term].line = len(self.dictionary)
             self.dictionary[term].doc_frequency += 1
 
         return terms, index + offset
+
+    def _build_doc_vector(self, content, k=5):
+        '''
+        builds a vector where terms are the axes of the vector.
+        k denotes the top k terms to be stored as the vector, (measured by tf-idf weighting)
+        this vector is to contain the k weighted terms that the doc's content contains.
+        '''
+        terms = [stem(w.strip().casefold()) for w in word_tokenize(content) if has_any_alphanumeric(w)]
+        term_weights = {}
+        for term in terms:
+            if term not in term_weights:
+                term_weights[term] = 0
+            term_weights[term] += 1
+        for term, freq in term_weights.items():
+            term_weights[term] = tf(freq) * idf(len(self.documents), self.dictionary[term].doc_frequency)
+        
+        top_k_terms = sorted(term_weights, key=lambda k: term_weights[k], reverse=True)[:k]
+        vector = {t: term_weights[t] for t in top_k_terms}
+        return vector
 
     def _write_to_postings_file(self, postings_lists):
         '''
@@ -106,33 +129,44 @@ class Indexer:
         builds dictionary of terms
         builds a collection of document objects (contains meta data)
         '''
-        doc_generator = self._generate_documents(data_file)
-        postings_lists = defaultdict(lambda: PostingsList())
-        for index, data in enumerate(doc_generator):
+        postings_lists = {}
+        for index, data in enumerate(self._generate_documents(data_file)):
+            print(f'indexed {index} documents', end='\r')
             if index == limit:
                 break
             doc_id, title, date_posted, court, content = data
+            if doc_id not in self.documents:
+                self.documents[doc_id] = Document()
             doc = self.documents[doc_id]
             doc.add(title, date_posted, court)
             term_positions, word_count = self._index_content(content, doc.word_count)
             doc.word_count = word_count
             for term, positions in term_positions.items():
                 term_frequency = len(positions)
+                if term not in postings_lists:
+                    postings_lists[term] = PostingsList()
                 postings_lists[term].add(Posting(doc_id, term_frequency, positions))
-                doc.length += tf(term_frequency) ** 2
-            print(f'indexed {index + 1} documents', end='\r')
-        print(f'indexed {index + 1} documents')
+        print(f'indexed {index} documents')
+
         self._write_to_postings_file(postings_lists)
-
-        # update the euclidean distance of documents (vector length)
-        for doc in self.documents.values():
-            doc.length = math.sqrt(doc.length)
-            del doc.word_count # remove word_count attribute, not necessary after indexing.
-
+        del postings_lists
         pointers = get_line_pointers(self.postings_file)
         for term, pointer in zip(self.dictionary.values(), pointers):
             term.offset = pointer # update pointer for efficient disk read of terms' postings lists.
             del term.line # remove line attribute, not necessary after indexing.
+        print(f'saved postings lists to {self.postings_file}')
+
+        for index, data in enumerate(self._generate_documents(data_file)):
+            print(f'calculated {index} vectors', end='\r')
+            if index == limit:
+                break
+            doc_id, title, date_posted, court, content = data
+            doc = self.documents[doc_id]
+            doc.update_vector(self._build_doc_vector(content)) # update document vectors and length
+        print(f'calculated {index} vectors')
+
+        for doc in self.documents.values():
+            del doc.word_count # remove word_count attribute, not necessary after indexing.
 
         write_dictionary(self.dictionary, self.dictionary_file)
         print(f'saved dictionary to {self.dictionary_file}')

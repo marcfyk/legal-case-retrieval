@@ -1,4 +1,3 @@
-from collections import defaultdict
 from heapq import heapify
 from heapq import heappop
 from heapq import heappush
@@ -41,35 +40,26 @@ class VectorSpaceModel:
         builds a query vector from the given terms.
         weights of the vector are derived from tf_idf weighting.
         '''
-        vector = defaultdict(int)
+        vector = {}
         existing_terms = [t for t in terms if t in self.dictionary]
         for t in existing_terms:
+            if t not in vector:
+                vector[t] = 0
             vector[t] += 1
         for t, f in vector.items():
             tf_idf = tf(f) * idf(len(self.documents), self.dictionary[t].doc_frequency)
             vector[t] = tf_idf if tf_idf >= 0 else 0
         return vector
 
-    def _build_document_vector(self, terms):
-        '''
-        builds a document vector from the given terms.
-        weights of the vector are derived from tf weighting.
-        '''
-        vector = defaultdict(int)
-        existing_terms = [t for t in terms if t in self.dictionary]
-        for t in existing_terms:
-            vector[t] += 1
-        for t, f in vector.items():
-            vector[t] = tf(f)
-        return vector
-
     def _build_centroid(self, vectors):
         '''
         returns a centroid of a list of vectors.
         '''
-        centroid_vector = defaultdict(int)
+        centroid_vector = {}
         for vector in vectors:
             for t, w in vector.items():
+                if t not in centroid_vector:
+                    centroid_vector[t] = 0
                 centroid_vector[t] += w
         for t, w in centroid_vector.items():
             centroid_vector = w / len(vectors)
@@ -81,38 +71,23 @@ class VectorSpaceModel:
         '''
         query_coefficient = 0.5
         centroid_coefficient = 0.5
-        vector = defaultdict(int)
+        vector = {}
         for t, w in query_vector.items():
+            if t not in vector:
+                vector[t] = 0
             vector[t] += query_coefficient * w
         for t, w in centroid.items():
+            if t not in vector:
+                vector[t] = 0
             vector[t] += centroid_coefficient * w
         return vector
 
     def _build_adjusted_vector_query(self, query_vector, relevant_doc_ids=[]):
-        doc_vectors = defaultdict(lambda: defaultdict(int))
-
-        relevant_doc_ids_set = set(relevant_doc_ids)
-
-        for term, query_weight in query_vector.items():
-            postings_list = self._get_postings_list(term)
-            for posting in postings_list:
-                doc_id, term_freq = posting.doc_id, posting.term_frequency
-                if doc_id in relevant_doc_ids_set:
-                    doc_weight = tf(term_freq)
-                    doc_vectors[doc_id][term] = doc_weight
-
-        for doc_id, vector in doc_vectors.items():
-            doc_length = self.documents[doc_id].length
-            for t, w in vector:
-                vector[t] = w / doc_length
-
-        for doc_id, vector in doc_vectors.items():
-            print(f'{doc_id} : {vector}')
-
-        centroid = self._build_centroid(list(doc_vectors.values()))
+        vectors = [self.documents[doc_id].vector for doc_id in relevant_doc_ids if doc_id in self.documents]
+        print(f'vectors: {vectors}')
+        centroid = self._build_centroid(vectors)
         print(f'centroid: {centroid}')
         adjusted_vector = self._build_adjusted_query(query_vector, centroid)
-
         return adjusted_vector
 
     def retrieve(self, terms, relevant_doc_ids=[]):
@@ -121,7 +96,6 @@ class VectorSpaceModel:
         '''
         print(f'vector space search on {terms}')
         query_vector = self._build_query_vector(terms)
-
         print(f'original vector: {query_vector}')
 
         if relevant_doc_ids:
@@ -134,12 +108,14 @@ class VectorSpaceModel:
         '''
         ranks doc ids with the given query vector using cosine scoring.
         '''
-        scores = defaultdict(int)
+        scores = {}
         for term, query_weight in query_vector.items():
             postings_list = self._get_postings_list(term)
             for posting in postings_list:
                 doc_id, term_freq = posting.doc_id, posting.term_frequency
                 doc_weight = tf(term_freq)
+                if doc_id not in scores:
+                    scores[doc_id] = 0
                 scores[doc_id] += doc_weight * query_weight
         
         for doc_id, score in scores.items():

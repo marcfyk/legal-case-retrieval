@@ -37,3 +37,4 @@ class SearchEngine:
             return result
         else:
             return self.vector_space_model.retrieve(terms, relevant_doc_ids)
+

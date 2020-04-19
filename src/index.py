@@ -1,9 +1,4 @@
 #!/usr/bin/python3
-import re
-import nltk
-import sys
-import getopt
-
 from os import path
 
 from searchengine import Indexer

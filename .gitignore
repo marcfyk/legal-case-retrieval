@@ -1,6 +1,7 @@
 *.txt
 *.pdf
 *.DS_STORE
+*.zip
 src/data
 src/queries
 src/searchengine/__pycache__

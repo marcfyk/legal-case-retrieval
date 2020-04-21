@@ -13,6 +13,15 @@ _postingposition_delimiter = ','
 _posting_pattern = re.compile(f'^[0-9]*[{_posting_delimiter}][0-9]*[{_posting_delimiter}][0-9]+({_postingposition_delimiter}[0-9]+)*$')
 
 class PostingsList:
+    '''
+    represents a postings list, which a list of posting objects.
+    each posting in a postings list contains doc_id, term_frequency and a list of positional indexes.
+    postings list represents a term from the dictionary.
+    postings lists are compressed when written to disk, using gap encoding.
+    when postings lists are read from disk, they are decompressed.
+
+    postings -> list of posting objects.
+    '''
 
     def __init__(self, postings=[]):
         self.postings = [p for p in postings]
@@ -21,6 +30,8 @@ class PostingsList:
     def parse(cls, postings_list_string):
         '''
         parses a string into a postings list object.
+        the string should be a compressed postings list.
+        the output is the decompressed postings list.
         '''
         posting_strings = postings_list_string.split(_postingslist_delimiter)
         postings_list = PostingsList([Posting.parse(p) for p in posting_strings])
@@ -33,6 +44,10 @@ class PostingsList:
         merge condition:
         -> posting ids are the same
         -> there exist positional indexes from both postings that occur at a certain distance. (|index1 - index2| = distance)
+
+        example: 
+        suppose t1 is the term with postings list p1, and t2 is the term with postings list p2.
+        merge(p1, p2, 1) returns a postings list of doc ids where t2 occurs immediately after t1.
         '''
         i1, i2 = iter(p1), iter(p2)
         output = PostingsList()
@@ -63,7 +78,7 @@ class PostingsList:
 
     def compress(self):
         '''
-        compresses postings list by compressing doc_ids and postings' positional indexes.
+        compresses postings list by compressing doc_ids and postings' positional indexes using gap encoding.
         '''
         compressed_doc_ids = inverse_accumulate([p.doc_id for p in self.postings])
         for doc_id, posting in zip(compressed_doc_ids, self.postings):
@@ -73,7 +88,7 @@ class PostingsList:
 
     def decompress(self):
         '''
-        decompresses postings list back from compressed state.
+        decompresses postings list back from compressed state, reversing the gap encoding.
         '''
         decompressed_doc_ids = accumulate([p.doc_id for p in self.postings])
         for doc_id, posting in zip(decompressed_doc_ids, self.postings):
@@ -82,9 +97,15 @@ class PostingsList:
         return self
 
     def __len__(self):
+        '''
+        returns the number of postings in this postings list.
+        '''
         return len(self.postings)
 
     def __iter__(self):
+        '''
+        iterates through all postings in this postings list.
+        '''
         for p in self.postings:
             yield p
 
@@ -96,6 +117,14 @@ class PostingsList:
 
 
 class Posting:
+    '''
+    represents a collection of data:
+    doc_id -> id of the document it represents.
+    term_frequency -> how often this term occurs in document of doc_id.
+    positions -> zero-based positional indexes of where this term occurs in document of doc_id.
+
+    similar to postings list, the positional indexes are compressed with gap encoding.
+    '''
 
     def __init__(self, doc_id, term_frequency=0, positions=[]):
         self.doc_id = doc_id
@@ -106,6 +135,8 @@ class Posting:
     def parse(cls, posting_string):
         '''
         parses a string into a posting.
+        string should be of a compressed posting.
+        output is the decompressed posting.
         '''
         if not _posting_pattern.match(posting_string):
             raise ValueError(f'invalid format: {posting_string}')
@@ -119,14 +150,14 @@ class Posting:
 
     def compress(self):
         '''
-        compresses posting's positional indexes.
+        compresses posting's positional indexes with gap encoding.
         '''
         self.positions = inverse_accumulate(self.positions)
         return self
 
     def decompress(self):
         '''
-        decompresses posting.
+        decompresses posting by reversing the gap encoding.
         '''
         self.positions = [p for p in accumulate(self.positions)]
         return self

@@ -58,7 +58,7 @@ class VectorSpaceModel:
 
     def _build_centroid_vector(self, doc_ids):
         '''
-        returns a centroid of a list of vectors mapped by doc ids.
+        returns a centroid of a list of vectors mapped from doc ids.
         '''
         vectors = [self.documents[d].get_normalized_vector() for d in doc_ids if d in self.documents]
         centroid_vector = {}
@@ -74,6 +74,8 @@ class VectorSpaceModel:
     def _adjust_vector(self, query_vector, centroid, query_coefficient, centroid_coefficient):
         '''
         returns an adjusted vector calculated from a query vector and a centroid.
+        query_coefficient and centroid_coefficient dictates which vector has a stronger influence
+        on the resultant vector.
         '''
         vector = {}
         for t, w in query_vector.items():
@@ -87,16 +89,30 @@ class VectorSpaceModel:
         return vector
 
     def _apply_relevance_feedback(self, query_vector, relevant_doc_ids):
+        '''
+        applies Rocchio (1971) algorithm -> 0.5 query_vector + 0.5 centroid
+        where centroid is calculated from relevant doc ids' vectors.
+        '''
         centroid_vector = self._build_centroid_vector(relevant_doc_ids)
         adjusted_vector = self._adjust_vector(query_vector, centroid_vector, 0.5, 0.5)
         return adjusted_vector
 
     def _apply_pseudo_relevance_feedback(self, query_vector, assumed_relevant_doc_ids):
+        '''
+        applies Rocchio (1971) algorithm -> 0.8 query_vector + 0.2 centroid
+        where centroid is calculated from assumed relevant doc ids' vectors.
+        '''
         centroid_vector = self._build_centroid_vector(assumed_relevant_doc_ids)
-        adjusted_vector = self._adjust_vector(query_vector, centroid_vector, 0.9, 0.1)
+        adjusted_vector = self._adjust_vector(query_vector, centroid_vector, 0.8, 0.2)
         return adjusted_vector
 
     def _expand_query_vector(self, query_vector):
+        '''
+        expands the query vector by adding synonyms to each term.
+        synonyms will have the same weight of the term they are derived from.
+        if synonyms are derived from more than one term, 
+        they have the average weight of their derived terms.
+        '''
         expanded_terms = {}
         for term in query_vector:
             synonyms = get_synonyms(term)
@@ -111,6 +127,13 @@ class VectorSpaceModel:
         return query_vector
 
     def get_ranking(self, terms, relevant_doc_ids):
+        '''
+        returns a ranked list of document ids from the a free text query, given relevant doc ids
+        from relevance judgements.
+
+        the query vector is refined with relevance feedback, apply Rocchio (1971) algorithm.
+        no query expansion and no pseudo relevance feedback so applied to the vector.
+        '''
         query_vector = self._build_query_vector(terms)
         if relevant_doc_ids:
             query_vector = self._apply_relevance_feedback(query_vector, relevant_doc_ids)
@@ -119,9 +142,17 @@ class VectorSpaceModel:
 
     def retrieve(self, terms, relevant_doc_ids):
         '''
-        retrieves a ranked list of documents from searching the given terms.
-        if there are relevant doc ids, the query vector is adjusted using the rocchio formula.
-        '''
+        retrieves a ranked list of document ids from searching the given free text terms,
+        given relevant doc ids from relevance judgements.
+
+        the query vector is refined with relevance feedback first.
+        then query expansion with wordnet is applied.
+        an initial ranking of documents is obtained.
+        after that, if the size of relevance judgements, |R| < 10, the top (10 - |R|) documents from
+        the initial ranking are assumed as relevant and used for pseudo relevance feedback.
+
+        then another ranking is done on the query vector and returned.
+        '''        
         query_vector = self._build_query_vector(terms)
 
         if relevant_doc_ids:
@@ -211,21 +242,34 @@ class MaxScoreHeap:
 
     def __init__(self, scores):
         '''
-        scores is an array to be heapified.
+        scores is an array to be transformed into a max heap.
         '''
         self.scores = [self._negate_score(score) for score in scores]
         heapify(self.scores)
 
     def _negate_score(self, score):
+        '''
+        negates the score, so that numerically, the behaviour of the
+        heapq simulates a max heap.
+        '''
         score.score = -score.score
         return score
 
     def pop(self):
+        '''
+        returns the largest score in the max heap.
+        '''
         return self._negate_score(heappop(self.scores))
 
     def push(self, score):
+        '''
+        adds the score to the max heap.
+        '''
         heappush(self._negate_score(score))
 
     def __len__(self):
+        '''
+        returns the number of scores in the max heap.
+        '''
         return len(self.scores)
 

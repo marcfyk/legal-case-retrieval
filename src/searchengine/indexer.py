@@ -31,6 +31,8 @@ class Indexer:
     postings_file -> file to store postings.
     dictionary_file -> file to store dictionary of terms.
     document_file -> file to store documents' meta data.
+    dictionary -> dictionary of term -> term objects to store information on terms.
+    documents -> dictionary of doc_id -> document objects to store meta data and vectors on docs.
     '''
 
     def __init__(self, postings_file, dictionary_file, document_file):
@@ -70,7 +72,10 @@ class Indexer:
         collects a dictionary of term -> list of positional indexes
         only words that contain at least one alphanumeric character is stored as a term
         however, positional indexes, takes into account all words, regardless of whether they are considered terms
-        this is to maintain accurate information on the absolute positions of terms (for a strict phrase query match)
+        this is to maintain accurate information on the absolute positions of terms (for a strict phrase query match).
+
+        therefore for the text "a ... b", "a" and "b" are indexed while "..." is not, however, from the positional indexes,
+        "a" and "b" are not adjacent to each other from this given text.
         '''
         terms = {}
         words = word_tokenize(content)
@@ -96,7 +101,7 @@ class Indexer:
         '''
         builds a vector where terms are the axes of the vector.
         k denotes the top k terms to be stored as the vector, (measured by tf-idf weighting)
-        this vector is to contain the k weighted terms that the doc's content contains.
+        this vector is to contain the top k weighted terms that the doc's content contains.
         '''
         terms = [stem(w) for w in word_tokenize(content) if has_any_alphanumeric(w)]
         term_weights = {}

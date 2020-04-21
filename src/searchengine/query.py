@@ -9,7 +9,8 @@ and_operator = 'AND'
 class Query:
     '''
     represents a query.
-    terms -> list of terms/phrases
+    raw_terms -> the exact raw input for the query.
+    terms -> list of terms/phrases, (stemming applied).
     is_boolean_query -> indicates if query requires an exact match or not.
     '''
 
@@ -25,7 +26,7 @@ class Query:
         '''
         raw_terms = [t.strip().casefold() for t in line.strip().split(' ')]
         terms = [stem(t) for t in raw_terms] # stems each term in the line.
-        return Query(raw_terms=raw_terms, terms=terms)
+        return Query(raw_terms=raw_terms, terms=terms, is_boolean_query=False)
 
     @classmethod
     def parse_boolean_query(cls, line):

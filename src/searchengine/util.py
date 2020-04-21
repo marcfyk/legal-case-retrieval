@@ -27,16 +27,25 @@ def string_to_date(string):
     return datetime.strptime(string, date_format)
 
 def tf(f):
+    '''
+    tf scheme.
+    '''
     if f == 0:
         return 0
     return 1 + log10(f)
 
 def idf(n, d):
+    '''
+    idf scheme.
+    '''
     if n == 0 or d == 0:
         return 0
     return log10(n / d)
 
 def stem(word):
+    '''
+    strips whitespace and casefolds the word before stemming it.
+    '''
     return porter_stemmer.stem(word.strip().casefold())
 
 def has_any_alphanumeric(word):
@@ -53,6 +62,8 @@ def inverse_accumulate(numbers):
     takes in a list X and returns a list Y,
     where for a valid index i, X[i] == sum of all elements from Y[0] to Y[i] (inclusive)
     [1,2,5] -> [1, 1, 3]
+
+    accumulate(inverse_accumulate(x)) -> x
     '''
     output = []
     total = 0
@@ -168,24 +179,39 @@ def within_proximity(l1, l2, distance):
     return match
 
 def write_dictionary(dictionary, file_to_write):
+    '''
+    serializes dictionary to the file_to_write using the pickle library.
+    '''
     with open(file_to_write, 'wb') as f:
         dump(dictionary, f)
 
 def write_documents(documents, file_to_write):
+    '''
+    serializes documents to the file_to_write using the pickle library.
+    '''
     with open(file_to_write, 'wb') as f:
         dump(documents, f)
 
 def load_dictionary(file_to_load):
+    '''
+    loads the dictionary stored in the file_to_load.
+    '''
     with open(file_to_load, 'rb') as f:
         dictionary = load(f)
     return dictionary
 
 def load_documents(file_to_load):
+    '''
+    loads the documents stored in the file_to_load.
+    '''
     with open(file_to_load, 'rb') as f:
         documents = load(f)
     return documents
 
 def get_synonyms(word):
+    '''
+    returns a set of synonyms of the given word, generated from wordnet.
+    '''
     synonyms = set()
     for synset in wordnet.synsets(word):
         for lemma in synset.lemma_names():

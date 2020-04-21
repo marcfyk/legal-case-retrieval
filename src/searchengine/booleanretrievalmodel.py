@@ -25,16 +25,30 @@ class BooleanRetrievalModel:
         line = read_line_from_file(self.postings_file, offset)
         return PostingsList.parse(line).decompress()
 
-    def retrieve(self, terms):
+    def retrieve(self, tokens):
         '''
         retrieves terms from postings list.
-        checks if terms are within proximity of each other by using the positional index in
-        each postings list of the terms.
         '''
-        print(f'boolean search on {terms}')
-        merge = PostingsList.merge
-        get_postings_list = self.get_postings_list
-        postings_lists = [get_postings_list(t) for t in terms]
-        result_postings_list = reduce(lambda x, y: merge(x, y, distance=1), postings_lists)
-        return [p.doc_id for p in result_postings_list]
+        output = [set(self._search_token(t)) for t in tokens]
+        if output:
+            return reduce(lambda x, y: x.intersection(y), output[1:], output[0])
+        else:
+            return set()
 
+
+    def _search_token(self, token):
+        is_phrase = len(token.strip().split(' ')) > 1
+        if is_phrase:
+            return self._search_phrase(token)
+        else:
+            return self._search_term(token)
+
+    def _search_phrase(self, phrase):
+        phrase_terms = [t.strip().casefold() for t in phrase.split(' ')]
+        postings_lists = [self.get_postings_list(t) for t in phrase_terms]
+        result = reduce(lambda x, y: PostingsList.merge(x, y, 1), postings_lists)
+        return [p.doc_id for p in result]
+
+    def _search_term(self, term):
+        postings_list = self.get_postings_list(term)
+        return [p.doc_id for p in postings_list]

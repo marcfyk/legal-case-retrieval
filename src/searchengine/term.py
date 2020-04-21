@@ -8,8 +8,5 @@ class Term:
         self.offset = offset
 
     def __repr__(self):
-        return f'''
-        doc_frequency: {self.doc_frequency}\n
-        offset: {self.offset}
-        '''
+        return f' doc_frequency: {self.doc_frequency} offset: {self.offset}'
 

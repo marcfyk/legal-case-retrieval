@@ -80,7 +80,7 @@ class Indexer:
 
         for index, word in enumerate(words):
             if has_any_alphanumeric(word):
-                term = stem(word.strip().casefold())
+                term = stem(word)
                 if term not in terms:
                     terms[term] = []
                 terms[term].append(index + offset)
@@ -92,13 +92,13 @@ class Indexer:
 
         return terms, index + offset
 
-    def _build_doc_vector(self, content, k=5):
+    def _build_doc_vector(self, content, k=20):
         '''
         builds a vector where terms are the axes of the vector.
         k denotes the top k terms to be stored as the vector, (measured by tf-idf weighting)
         this vector is to contain the k weighted terms that the doc's content contains.
         '''
-        terms = [stem(w.strip().casefold()) for w in word_tokenize(content) if has_any_alphanumeric(w)]
+        terms = [stem(w) for w in word_tokenize(content) if has_any_alphanumeric(w)]
         term_weights = {}
         for term in terms:
             if term not in term_weights:
@@ -116,11 +116,9 @@ class Indexer:
         writes postings lists to file
         each line denotes a postings list
         '''
-        sort_by_line_comparator = lambda k: self.dictionary[k[0]].line
-        to_write = sorted(postings_lists.items(), key=sort_by_line_comparator)
         with open(self.postings_file, 'a+', encoding='utf8') as f:
             f.seek(0)
-            for term, postings_list in to_write:
+            for term, postings_list in postings_lists.items():
                 f.write(str(postings_list.compress()) + '\n')
 
     def index(self, data_file, limit=-1):
@@ -131,7 +129,6 @@ class Indexer:
         '''
         postings_lists = {}
         for index, data in enumerate(self._generate_documents(data_file)):
-            print(f'indexed {index} documents', end='\r')
             if index == limit:
                 break
             doc_id, title, date_posted, court, content = data
@@ -146,10 +143,8 @@ class Indexer:
                 if term not in postings_lists:
                     postings_lists[term] = PostingsList()
                 postings_lists[term].add(Posting(doc_id, term_frequency, positions))
-        print(f'indexed {index} documents')
 
         self._write_to_postings_file(postings_lists)
-        del postings_lists
         pointers = get_line_pointers(self.postings_file)
         for term, pointer in zip(self.dictionary.values(), pointers):
             term.offset = pointer # update pointer for efficient disk read of terms' postings lists.
@@ -157,13 +152,11 @@ class Indexer:
         print(f'saved postings lists to {self.postings_file}')
 
         for index, data in enumerate(self._generate_documents(data_file)):
-            print(f'calculated {index} vectors', end='\r')
             if index == limit:
                 break
             doc_id, title, date_posted, court, content = data
             doc = self.documents[doc_id]
             doc.update_vector(self._build_doc_vector(content)) # update document vectors and length
-        print(f'calculated {index} vectors')
 
         for doc in self.documents.values():
             del doc.word_count # remove word_count attribute, not necessary after indexing.

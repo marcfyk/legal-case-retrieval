@@ -1,8 +1,10 @@
 from datetime import datetime
 from math import log10
+from itertools import product
 from pickle import dump
 from pickle import load
 from nltk import PorterStemmer
+from nltk.corpus import wordnet
 
 from .document import Document
 from .term import Term
@@ -156,12 +158,12 @@ def union(l1, l2):
         return output
     return output
 
-def within_proximity(l1, l2, distance=0):
+def within_proximity(l1, l2, distance):
     '''
     checks if there are any elements in l1 and l2, i and j,
     where difference between |i - j| = distance.
     '''
-    shifted_l1 = [i + distance for i in l1]
+    shifted_l1 = [(i + distance) for i in l1]
     match = union(shifted_l1, l2)
     return match
 
@@ -183,3 +185,9 @@ def load_documents(file_to_load):
         documents = load(f)
     return documents
 
+def get_synonyms(word):
+    synonyms = set()
+    for synset in wordnet.synsets(word):
+        for lemma in synset.lemma_names():
+            synonyms.add(lemma)
+    return synonyms

@@ -25,10 +25,13 @@ class Document:
             self.vector[k] += v
         self.length = self._get_vector_length()
 
+    def get_titles(self):
+        return [title for title, date_posted, court in self.data]
+
     def get_normalized_vector(self):
         if self.length == 0:
             return 0
-        return {k: v / self.length for k, v in self.vector}
+        return {k: v / self.length for k, v in self.vector.items()}
 
     def __repr__(self):
         return f'length: {self.length}, data: {self.data}, vector: {self.vector}'

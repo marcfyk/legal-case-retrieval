@@ -14,4 +14,3 @@ open(documentFile, 'w+', encoding='utf8').close()
 
 indexer = Indexer(postingsFile, dictionaryFile, documentFile)
 indexer.index(dataFile)
-

@@ -27,7 +27,7 @@ class PostingsList:
         return postings_list
 
     @classmethod
-    def merge(cls, p1, p2, distance=0):
+    def merge(cls, p1, p2, distance):
         '''
         linear merge of two postings lists p1 and p2 into another postings list.
         merge condition:
@@ -45,9 +45,9 @@ class PostingsList:
                 elif id1 > id2:
                     n2 = next(i2)
                 else:
-                    indexes = within_proximity(n1.positions, n2.positions, distance=distance)
+                    indexes = within_proximity(n1.positions, n2.positions, distance)
                     if indexes:
-                        n = Posting(n2.doc_id, len(indexes), indexes)
+                        n = Posting(n2.doc_id, term_frequency=len(indexes), positions=indexes)
                         output.add(n)
                     n1, n2 = next(i1), next(i2)
         except StopIteration:

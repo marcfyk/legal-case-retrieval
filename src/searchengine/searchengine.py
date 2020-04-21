@@ -17,24 +17,31 @@ class SearchEngine:
         self.boolean_retrieval_model = BooleanRetrievalModel(dictionary, postings_file)
         self.vector_space_model = VectorSpaceModel(dictionary, documents, postings_file)
 
-    def search(self, query, relevant_doc_ids=[]):
+    def search(self, query, relevant_doc_ids):
         terms = query.terms
-
         if query.is_boolean_query:
-            boolean_result = [set(self.boolean_retrieval_model.retrieve(t)) for t in terms]
-            if all(boolean_result):
-                boolean_result = reduce(lambda x, y: x.intersection(y), boolean_result[1:], boolean_result[0])
-            else:
-                boolean_result = set()
-
-            flattened_terms = []
-            for term in terms:
-                flattened_terms.extend([t.strip() for t in term.split(' ')])
-            vector_result = self.vector_space_model.retrieve(flattened_terms, relevant_doc_ids)
-            matches = set(relevant_doc_ids).union(boolean_result)
-            result = [doc_id for doc_id in relevant_doc_ids]
-            result.extend([doc_id for doc_id in vector_result if doc_id in matches])
-            return result
+            return self._search_boolean(terms, relevant_doc_ids)
         else:
-            return self.vector_space_model.retrieve(terms, relevant_doc_ids)
+            return self._search_free_text(terms, relevant_doc_ids)
 
+    def _search_boolean(self, terms, relevant_doc_ids):
+        boolean_result_set = self.boolean_retrieval_model.retrieve(terms)
+
+        flattened_terms = []
+        for term in terms:
+            flattened_terms.extend([t.strip() for t in term.split(' ')])
+
+        vector_result = self.vector_space_model.get_ranking(flattened_terms, relevant_doc_ids)
+        relevant_doc_set = set(relevant_doc_ids)
+        result = [d for d in relevant_doc_ids]
+        for r in vector_result:
+            if r not in relevant_doc_set and r in boolean_result_set:
+                result.append(r)
+                boolean_result_set.remove(r)
+        for r in boolean_result_set:
+            result.append(r)
+
+        return result
+        
+    def _search_free_text(self, terms, relevant_doc_ids):
+        return self.vector_space_model.retrieve(terms, relevant_doc_ids)

@@ -1,3 +1,4 @@
+from functools import reduce
 from heapq import heapify
 from heapq import heappop
 from heapq import heappush
@@ -6,6 +7,8 @@ from .postingslist import PostingsList
 from .util import read_line_from_file
 from .util import tf
 from .util import idf
+from .util import stem
+from .util import get_synonyms
 
 class VectorSpaceModel:
     '''
@@ -17,6 +20,8 @@ class VectorSpaceModel:
     Therefore document and query vectors are all represented as dictionaries.
 
     dictionary -> dictionary of term -> term objects
+    documents -> dictionary of doc_id -> doc objects
+    postings_file -> file containing postings lists
     '''
 
     def __init__(self, dictionary, documents, postings_file):
@@ -51,10 +56,11 @@ class VectorSpaceModel:
             vector[t] = tf_idf if tf_idf >= 0 else 0
         return vector
 
-    def _build_centroid(self, vectors):
+    def _build_centroid_vector(self, doc_ids):
         '''
-        returns a centroid of a list of vectors.
+        returns a centroid of a list of vectors mapped by doc ids.
         '''
+        vectors = [self.documents[d].get_normalized_vector() for d in doc_ids if d in self.documents]
         centroid_vector = {}
         for vector in vectors:
             for t, w in vector.items():
@@ -62,15 +68,13 @@ class VectorSpaceModel:
                     centroid_vector[t] = 0
                 centroid_vector[t] += w
         for t, w in centroid_vector.items():
-            centroid_vector = w / len(vectors)
+            centroid_vector[t] = w / len(vectors)
         return centroid_vector
 
-    def _build_adjusted_query(self, query_vector, centroid):
+    def _adjust_vector(self, query_vector, centroid, query_coefficient, centroid_coefficient):
         '''
         returns an adjusted vector calculated from a query vector and a centroid.
         '''
-        query_coefficient = 0.5
-        centroid_coefficient = 0.5
         vector = {}
         for t, w in query_vector.items():
             if t not in vector:
@@ -82,31 +86,64 @@ class VectorSpaceModel:
             vector[t] += centroid_coefficient * w
         return vector
 
-    def _build_adjusted_vector_query(self, query_vector, relevant_doc_ids=[]):
-        vectors = [self.documents[doc_id].vector for doc_id in relevant_doc_ids if doc_id in self.documents]
-        print(f'vectors: {vectors}')
-        centroid = self._build_centroid(vectors)
-        print(f'centroid: {centroid}')
-        adjusted_vector = self._build_adjusted_query(query_vector, centroid)
+    def _apply_relevance_feedback(self, query_vector, relevant_doc_ids):
+        centroid_vector = self._build_centroid_vector(relevant_doc_ids)
+        adjusted_vector = self._adjust_vector(query_vector, centroid_vector, 0.5, 0.5)
         return adjusted_vector
 
-    def retrieve(self, terms, relevant_doc_ids=[]):
+    def _apply_pseudo_relevance_feedback(self, query_vector, assumed_relevant_doc_ids):
+        centroid_vector = self._build_centroid_vector(assumed_relevant_doc_ids)
+        adjusted_vector = self._adjust_vector(query_vector, centroid_vector, 0.9, 0.1)
+        return adjusted_vector
+
+    def _expand_query_vector(self, query_vector):
+        expanded_terms = {}
+        for term in query_vector:
+            synonyms = get_synonyms(term)
+            for s in synonyms:
+                if s not in expanded_terms:
+                    expanded_terms[s] = []
+                expanded_terms[s].append(term)
+        for synonym, terms in expanded_terms.items():
+            weights = [query_vector[t] for t in terms]
+            average_weight = sum(weights) / len(weights)
+            query_vector[synonym] = average_weight
+        return query_vector
+
+    def get_ranking(self, terms, relevant_doc_ids):
+        query_vector = self._build_query_vector(terms)
+        if relevant_doc_ids:
+            query_vector = self._apply_relevance_feedback(query_vector, relevant_doc_ids)
+        result = self._rank(query_vector, relevant_doc_ids)
+        return result
+
+    def retrieve(self, terms, relevant_doc_ids):
         '''
         retrieves a ranked list of documents from searching the given terms.
+        if there are relevant doc ids, the query vector is adjusted using the rocchio formula.
         '''
-        print(f'vector space search on {terms}')
         query_vector = self._build_query_vector(terms)
-        print(f'original vector: {query_vector}')
 
         if relevant_doc_ids:
-            query_vector = self._build_adjusted_vector_query(query_vector, relevant_doc_ids)
-            print(f'adjusted vector: {query_vector}')
-        
-        return self.rank(query_vector, relevant_doc_ids)
+            query_vector = self._apply_relevance_feedback(query_vector, relevant_doc_ids)
 
-    def rank(self, query_vector, relevant_doc_ids):
+        query_vector = self._expand_query_vector(query_vector)
+
+        relevant_feedback_total_size = 10
+        relevant_size = len(relevant_doc_ids)
+        assumed_relevant_size = max(0, relevant_feedback_total_size - relevant_size)
+        result = self._rank(query_vector, relevant_doc_ids)
+        assumed_relevant_doc_ids = result[relevant_size:relevant_size+assumed_relevant_size]
+        if assumed_relevant_doc_ids:
+            query_vector = self._apply_relevance_feedback(query_vector, assumed_relevant_doc_ids)
+            result = self._rank(query_vector, relevant_doc_ids)
+
+        return result
+
+    def _rank(self, query_vector, relevant_doc_ids):
         '''
         ranks doc ids with the given query vector using cosine scoring.
+        relevant doc ids are ranked at the top regardless of score.
         '''
         scores = {}
         for term, query_weight in query_vector.items():
@@ -119,7 +156,6 @@ class VectorSpaceModel:
                 scores[doc_id] += doc_weight * query_weight
         
         for doc_id, score in scores.items():
-            print(doc_id, score, doc_id in self.documents)
             scores[doc_id] = score / self.documents[doc_id].length
 
         score_objs = [Score(doc_id, score) for doc_id, score in scores.items()]
@@ -129,7 +165,6 @@ class VectorSpaceModel:
         top_results = set(relevant_doc_ids)
         while len(max_score_heap):
             next_score = max_score_heap.pop()
-            print(f'score: {next_score}')
             if next_score.doc_id not in top_results:
                 output.append(next_score.doc_id)
 

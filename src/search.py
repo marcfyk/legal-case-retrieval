@@ -1,17 +1,12 @@
+#!/usr/bin/python3
 from searchengine import Query
 from searchengine import ParseError
 from searchengine import SearchEngine
 from searchengine import load_dictionary
 from searchengine import load_documents
 
-postings_file = 'postings.txt'
-dictionary_file = 'dictionary.txt'
-document_file = 'document.txt'
-data_file = 'data/dataset.csv'
-q1_file = 'data/q1.txt'
-q2_file = 'data/q2.txt'
-q3_file = 'data/q3.txt'
-results_file = 'output-file-of-results.txt'
+import getopt
+import sys
 
 def read_query(query_file):
     query = ''
@@ -22,24 +17,40 @@ def read_query(query_file):
         while line:
             relevant_doc_ids.append(int(line.strip()))
             line = f.readline()
-
     return Query.parse(query), relevant_doc_ids
 
-def search_query(query_obj, relevant_doc_ids, search_engine):
-    try:
-        result = search_engine.search(query_obj, relevant_doc_ids)
-    except ParseError as e:
-        print(f'parse error encountered: {e}')
+try:
+    opts, args = getopt.getopt(sys.argv[1:], 'd:p:q:o:')
+except getopt.GetoptError:
+    print(f'usage: {sys.argv[0]} -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results')
+    sys.exit(2)
 
-def search(query_file, search_engine):
-    query_obj, relevant_doc_ids = read_query(query_file)
-    search_query(query_obj, relevant_doc_ids, search_engine)
+for x, y in opts:
+    if x == '-d':
+        dictionary_file = y
+    elif x == '-p':
+        postings_file = y
+    elif x == '-q':
+        query_file = y
+    elif x == '-o':
+        results_file = y
+    else:
+        raise AssertionError('unhandled option')
 
+if not all([dictionary_file, postings_file, query_file, results_file]):
+    print(f'usage: {sys.argv[0]} -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results')
+    sys.exit(2)
+
+document_file = 'document.txt'
 dictionary = load_dictionary(dictionary_file)
 documents = load_documents(document_file)
 search_engine = SearchEngine(dictionary, documents, postings_file)
+query, relevant_doc_ids = read_query(query_file)
 
-search(q1_file, search_engine)
-search(q2_file, search_engine)
-search(q3_file, search_engine)
-# search('data/custom-q4.txt', search_engine)
+with open(results_file, 'w') as f:
+    f.seek(0)
+    try:
+        result = search_engine.search(query, relevant_doc_ids)
+        f.write(' '.join([str(i) for i in result]) + '\n')
+    except ParseError as e:
+        f.write(f'parse error encountered: {e}')

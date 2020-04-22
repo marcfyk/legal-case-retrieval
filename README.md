@@ -5,6 +5,9 @@
 ```
 python3 index.py -i <dataset-file> -d <dictionary-file> -p <postings-file>
 ```
+format for csv file: `document id, title, content, date_posted, court`
+the first row in the csv file should not contain any document and should just contain the header fields.
+`date_posted` should be in the format `YYYY-MM-DD hh:mm:ss`
 
 ## Searching
 - `query-file`: containing a single query.

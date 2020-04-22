@@ -10,6 +10,10 @@ except getopt.GetoptError:
     print(f'usage: {sys.argv[0]} -i dataset-file -d dictionary-file -p postings-file')
     sys.exit(2)
 
+data_file = None
+dictionary_file = None
+postings_file = None
+
 for x, y in opts:
     if x == '-i':
         data_file = y
@@ -20,7 +24,7 @@ for x, y in opts:
     else:
         raise AssertionError('unhandled option')
 
-if not all([data_file, dictionary_file, postings_file]):
+if data_file == None or dictionary_file == None or postings_file == None:
     print(f'usage: {sys.argv[0]} -i dataset-file -d dictionary-file -p postings-file')
     sys.exit(2)
 
@@ -30,4 +34,5 @@ open(dictionary_file, 'w+', encoding='utf8').close()
 open(document_file, 'w+', encoding='utf8').close()
 
 indexer = Indexer(postings_file, dictionary_file, document_file)
-indexer.index(data_file)
+indexer.index(data_file, limit=10)
+

@@ -25,6 +25,11 @@ except getopt.GetoptError:
     print(f'usage: {sys.argv[0]} -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results')
     sys.exit(2)
 
+dictionary_file = None
+postings_file = None
+query_file = None
+results_file = None
+
 for x, y in opts:
     if x == '-d':
         dictionary_file = y
@@ -37,7 +42,7 @@ for x, y in opts:
     else:
         raise AssertionError('unhandled option')
 
-if not all([dictionary_file, postings_file, query_file, results_file]):
+if dictionary_file == None or postings_file == None or query_file == None or results_file == None:
     print(f'usage: {sys.argv[0]} -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results')
     sys.exit(2)
 

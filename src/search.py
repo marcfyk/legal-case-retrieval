@@ -59,3 +59,4 @@ with open(results_file, 'w') as f:
         f.write(' '.join([str(i) for i in result]) + '\n')
     except ParseError as e:
         f.write(f'parse error encountered: {e}')
+

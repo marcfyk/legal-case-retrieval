@@ -34,5 +34,5 @@ open(dictionary_file, 'w+', encoding='utf8').close()
 open(document_file, 'w+', encoding='utf8').close()
 
 indexer = Indexer(postings_file, dictionary_file, document_file)
-indexer.index(data_file, limit=10)
+indexer.index(data_file)
 
